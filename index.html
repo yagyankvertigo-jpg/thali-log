@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thali Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --surface2:#F5F7FA; --ink:#18212B; --ink2:#5A6677; --line:#DDE3EB; --track:#E3E8EF;
+  --cal:#F0A202; --pro:#2C9A63; --carb:#5468E0; --fat:#D6457A; --burn:#0C8E9C; --over:#D8504A;
+  --user-bg:#18212B; --user-ink:#FFFFFF; --good:#DDF1E4; --warn:#FBE7C8; --low:#E2E8F7; --shadow:rgba(20,30,50,.07);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1319; --surface:#181E27; --surface2:#202733; --ink:#E9EDF3; --ink2:#9AA6B7; --line:#2B3441; --track:#2A3340;
+    --cal:#F5B52E; --pro:#4CC386; --carb:#8798FF; --fat:#F0709F; --burn:#3CC3D1; --over:#F2706A;
+    --user-bg:#F5B52E; --user-ink:#1B1400; --good:#173325; --warn:#3A2C14; --low:#1E2641; --shadow:rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1319; --surface:#181E27; --surface2:#202733; --ink:#E9EDF3; --ink2:#9AA6B7; --line:#2B3441; --track:#2A3340;
+  --cal:#F5B52E; --pro:#4CC386; --carb:#8798FF; --fat:#F0709F; --burn:#3CC3D1; --over:#F2706A;
+  --user-bg:#F5B52E; --user-ink:#1B1400; --good:#173325; --warn:#3A2C14; --low:#1E2641; --shadow:rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.4 "Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
+.app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;position:relative;background:var(--bg)}
+:focus-visible{outline:2px solid var(--carb);outline-offset:2px}
+
+.top{display:flex;align-items:center;gap:4px;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;gap:2px;flex:1;min-width:0}
+.title{font:700 17px "Bricolage Grotesque","Figtree",system-ui,sans-serif;background:none;border:0;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;min-width:0}
+.ib{width:36px;height:36px;flex:none;border-radius:10px;border:0;background:transparent;color:var(--ink2);display:grid;place-items:center;cursor:pointer}
+.ib.on{background:var(--cal);color:#1B1400}
+.ib:disabled{opacity:.3;cursor:default}
+.ib.sm{width:30px;height:30px;border-radius:8px}
+.ib.sm .ic{width:16px;height:16px}
+.sep{width:1px;height:20px;background:var(--line);margin:0 2px}
+
+.stats{flex:1 1 0;min-height:0;overflow-y:auto;padding:12px 12px 80px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.hero{display:flex;align-items:center;gap:18px;padding:2px 4px}
+.ring{position:relative;width:132px;height:132px;flex:none}
+.ring .mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring b{font:700 30px/1 "Bricolage Grotesque","Figtree",sans-serif;font-variant-numeric:tabular-nums}
+.ring span{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.kv{flex:1;display:grid;gap:7px;min-width:0}
+.kv div{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;border-bottom:1px dashed var(--line);padding-bottom:4px}
+.kv .l{color:var(--ink2)}
+.kv b{font-weight:600;font-variant-numeric:tabular-nums}
+.kv .burn b{color:var(--burn)}
+.kv .over b{color:var(--over)}
+.mrow{display:grid;grid-template-columns:58px 1fr 92px;gap:8px;align-items:center;font-size:13px;margin:7px 0}
+.mrow .v{font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12px;text-align:right}
+.bar{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--c)}
+.bar.sm{height:4px;margin-top:5px}
+.micro{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.micro div{font-size:11.5px;color:var(--ink2)}
+.micro b{display:block;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+
+.grp h3{font:600 12.5px "Figtree",sans-serif;color:var(--ink2);display:flex;justify-content:space-between;padding:8px 2px 5px;border-bottom:1px solid var(--line)}
+.ent{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line)}
+.ent .n{font-weight:500}
+.ent small{display:block;color:var(--ink2);font-size:12px}
+.ent .k{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.ent .k.neg{color:var(--burn)}
+.mac{display:flex;gap:10px;font-size:11.5px;color:var(--ink2);margin-top:2px;font-variant-numeric:tabular-nums}
+.mac span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--c);margin-right:4px}
+.empty{color:var(--ink2);font-size:14px;padding:18px 6px;text-align:center}
+
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sum div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 9px}
+.sum b{display:block;font:700 18px "Bricolage Grotesque","Figtree",sans-serif;font-variant-numeric:tabular-nums}
+.sum span{font-size:11px;color:var(--ink2)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{font-size:11px;color:var(--ink2);text-align:center;padding:2px 0}
+.cell{aspect-ratio:1/1.15;border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:3px 4px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;cursor:pointer;min-width:0;overflow:hidden}
+.cell .dn{font-size:11px;color:var(--ink2);font-weight:600;line-height:1}
+.cell .kc{font:700 12px "Bricolage Grotesque","Figtree",sans-serif;font-variant-numeric:tabular-nums;line-height:1}
+.cell .pp{font-size:9.5px;color:var(--ink2);line-height:1;margin-bottom:2px}
+.cell.ok{background:var(--good)}
+.cell.over{background:var(--warn)}
+.cell.low{background:var(--low)}
+.cell.today{outline:2px solid var(--ink);outline-offset:-2px}
+.cell.blank{visibility:hidden}
+.cell.none .kc{color:var(--ink2);font-weight:500}
+.pbar{height:3px;background:var(--track);border-radius:2px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--pro)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+.chart{width:100%;height:auto;display:block}
+.ch-h{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px}
+.ch-h span{font-weight:400;color:var(--ink2);font-size:12px}
+
+.chat{flex:0 0 46%;min-height:240px;max-height:64%;display:flex;flex-direction:column;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -6px 20px var(--shadow)}
+.chat.hide{display:none}
+.chead{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 0 14px;font:700 14px "Bricolage Grotesque","Figtree",sans-serif;color:var(--ink2)}
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:6px 12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:90%;padding:8px 11px;border-radius:14px;font-size:14px;overflow-wrap:anywhere}
+.m.u{align-self:flex-end;background:var(--user-bg);color:var(--user-ink);border-bottom-right-radius:4px}
+.m.a{align-self:flex-start;background:var(--surface2);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-top:5px}
+.m .row:first-child{margin-top:0}
+.m .row small{display:block;color:var(--ink2);font-size:12px}
+.m .num{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.m .num.neg{color:var(--burn)}
+.m .tot{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink2)}
+.m .warn{margin-top:6px;font-size:13px;color:var(--ink2)}
+.m code{font:500 12.5px "Figtree",sans-serif;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 5px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);padding:5px 11px;border-radius:99px;font:500 12.5px "Figtree",sans-serif;cursor:pointer;white-space:nowrap}
+.inp{display:flex;gap:8px;padding:6px 10px 10px}
+.inp input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:12px;padding:11px 12px;font:400 16px "Figtree",sans-serif}
+.send{width:46px;border:0;border-radius:12px;background:var(--cal);color:#1B1400;display:grid;place-items:center;cursor:pointer}
+.fab{position:absolute;right:14px;bottom:14px;display:none;align-items:center;gap:8px;border:0;border-radius:99px;background:var(--cal);color:#1B1400;padding:12px 18px 12px 14px;font:600 14px "Figtree",sans-serif;cursor:pointer;box-shadow:0 6px 18px var(--shadow)}
+.app.nochat .fab{display:flex}
+
+.ov{position:absolute;inset:0;background:rgba(10,15,25,.5);display:none;align-items:flex-end;justify-content:center;z-index:5}
+.ov.on{display:flex}
+.sheet{background:var(--surface);width:100%;border-radius:18px 18px 0 0;padding:16px 16px 20px;display:grid;gap:12px}
+.sheet h2{font:700 18px "Bricolage Grotesque","Figtree",sans-serif;display:flex;justify-content:space-between;align-items:center}
+.fld{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;font-size:14px}
+.fld small{display:block;color:var(--ink2);font-size:12px}
+.fld input{border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:10px;padding:9px 10px;font:400 16px "Figtree",sans-serif;width:100%}
+.btn{border:1px solid var(--line);background:var(--surface2);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:500}
+.btn.danger{color:var(--over)}
+.note{font-size:12px;color:var(--ink2)}
+@media (prefers-reduced-motion: no-preference){ .bar i{transition:width .35s ease} }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="nav">
+      <button class="ib" data-act="prev" aria-label="Previous" data-ic="left"></button>
+      <button class="title" id="title" data-act="today" title="Jump to today"></button>
+      <button class="ib" id="nextB" data-act="next" aria-label="Next" data-ic="right"></button>
+    </div>
+    <button class="ib" id="vDay" data-act="vday" aria-label="Daily view" title="Daily view" data-ic="list"></button>
+    <button class="ib" id="vMonth" data-act="vmonth" aria-label="Monthly view" title="Monthly view" data-ic="cal"></button>
+    <span class="sep"></span>
+    <button class="ib" id="tChat" data-act="tchat" aria-label="Show or hide chat" title="Show or hide chat" data-ic="chat"></button>
+    <button class="ib" data-act="settings" aria-label="Goals and settings" title="Goals and settings" data-ic="sliders"></button>
+  </header>
+
+  <main class="stats" id="stats"></main>
+
+  <section class="chat" id="chat" aria-label="Log chat">
+    <div class="chead"><span>Log</span><button class="ib sm" data-act="tchat" aria-label="Hide chat" data-ic="down"></button></div>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+    <div class="inp">
+      <input id="inp" type="text" autocomplete="off" enterkeyhint="send" placeholder="What did you eat or do?" aria-label="Log entry">
+      <button class="send" data-act="send" aria-label="Send" data-ic="send"></button>
+    </div>
+  </section>
+
+  <button class="fab" data-act="tchat" aria-label="Open chat to log an entry"><span data-ic="chat"></span>Log entry</button>
+
+  <div class="ov" id="ov" data-act="closeov">
+    <div class="sheet" role="dialog" aria-label="Goals and settings">
+      <h2>Goals and settings <button class="ib sm" data-act="closeov" aria-label="Close" data-ic="x"></button></h2>
+      <label class="fld"><span>Body weight<small>Used to estimate calories burned</small></span><input id="sWeight" type="number" inputmode="decimal" min="20" max="250"></label>
+      <label class="fld"><span>Daily calorie goal<small>kcal, after subtracting workouts</small></span><input id="sKcal" type="number" inputmode="numeric" min="800" max="6000"></label>
+      <label class="fld"><span>Daily protein goal<small>grams</small></span><input id="sPro" type="number" inputmode="numeric" min="10" max="400"></label>
+      <p class="note">Carb and fat targets are set from your calorie goal (50% and 28%). Fibre, iron, calcium and vitamin C use typical adult daily references. Values are estimates, not medical advice.</p>
+      <button class="btn danger" id="clearB" data-act="clear">Clear all data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const KEY="thali-log-v1";
+const S={settings:{weight:70,kcal:2000,protein:90},days:{},chat:[]};
+try{
+  const raw=localStorage.getItem(KEY);
+  if(raw){const o=JSON.parse(raw);
+    if(o&&typeof o==="object"){
+      Object.assign(S.settings,o.settings||{});
+      S.days=(o.days&&typeof o.days==="object")?o.days:{};
+      S.chat=Array.isArray(o.chat)?o.chat:[];
+    }}
+}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+//<<PARSER
+const f1=n=>String(Math.round(n*10)/10);
+const NUMW={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,half:0.5,quarter:0.25,dedh:1.5,dhai:2.5,ek:1};
+const NUMRE=new RegExp("\\b("+Object.keys(NUMW).join("|")+")\\b","g");
+function norm(x){
+  let s=String(x).toLowerCase();
+  s=s.replace(/(\d)\s*½/g,"$1.5").replace(/(\d)\s*¼/g,"$1.25").replace(/(\d)\s*¾/g,"$1.75").replace(/½/g,"0.5").replace(/¼/g,"0.25").replace(/¾/g,"0.75");
+  s=s.replace(/half an? hour|half hour|aadha ghanta/g,"30 min").replace(/\ban hour\b/g,"1 hour");
+  s=s.replace(/(\d+)\s+(\d+)\/(\d+)/g,(m,a,b,c)=>String(Number(a)+Number(b)/Number(c)));
+  s=s.replace(/(\d+)\/(\d+)/g,(m,a,b)=>String(Number(a)/Number(b)));
+  s=s.replace(NUMRE,m=>" "+NUMW[m]+" ");
+  s=s.replace(/(\d+)\s*sets?\s*(?:of)?\s*(\d+)/g,"$1x$2").replace(/(\d+)\s*x\s*(\d+)/g,"$1x$2");
+  s=s.replace(/(\d+(?:\.\d+)?)\s*x\s+(?=[a-z])/g,"$1 ").replace(/\bx\s*(\d+)\b/g," $1 ");
+  s=s.replace(/[-_\/]/g," ").replace(/[^a-z0-9. ]/g," ").replace(/\.(?!\d)/g," ").replace(/\s+/g," ").trim();
+  return s;
+}
+function sing(w){
+  if(w.length>3&&w.endsWith("oes"))return w.slice(0,-2);
+  if(w.length>3&&w.endsWith("ies"))return w.slice(0,-3)+"y";
+  if(w.length>3&&w.endsWith("s")&&!w.endsWith("ss")&&!w.endsWith("us"))return w.slice(0,-1);
+  return w;
+}
+const STOP=new Set(["of","with","a","an","the","some","my","home","made","homemade","cooked","fresh","little","just","also","then","approx","about","around","roughly","medium","regular","small","mini","large","big","extra"]);
+function toks(s){return s.split(" ").filter(w=>w&&!STOP.has(w)).map(sing);}
+function lev1(a,b){
+  if(a===b)return true;
+  let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;
+  if(a.length===b.length)return a.slice(i+1)===b.slice(i+1);
+  if(a.length>b.length)return a.slice(i+1)===b.slice(i);
+  return b.slice(i+1)===a.slice(i);
+}
+function tokEq(a,b){
+  if(a===b)return true;
+  return a.length>=5&&b.length>=5&&Math.abs(a.length-b.length)<=1&&lev1(a,b);
+}
+function findIn(list,it){
+  let best=null,bs=0;
+  for(const item of list){
+    for(const a of item.at){
+      const n=a.length;
+      if(!n||n>it.length)continue;
+      for(let s=0;s<=it.length-n;s++){
+        let ok=true;
+        for(let j=0;j<n;j++){if(!tokEq(it[s+j],a[j])){ok=false;break;}}
+        if(ok){const sc=n*100+a.join("").length;if(sc>bs){bs=sc;best={item,start:s,n};}}
+      }
+    }
+  }
+  return best;
+}
+
+/* Foods per 100 g (cooked/ready-to-eat unless noted):
+   name, aliases, kcal, protein, carbs, fat, fibre, iron mg, calcium mg, vit C mg, default grams per unit, flags
+   flags: c = countable piece, k = katori-based, l = liquid, cuN = grams per cup, tsN = grams per teaspoon */
+const RAW=[
+["Roti / chapati","roti|chapati|chapatti|chapathi|phulka|fulka|rotli|tawa roti",300,9.5,55,4,3.9,3,25,0,40,"c"],
+["Paratha (plain)","paratha|parantha|plain paratha|ghee paratha",326,7.5,48,12,3.5,2.5,30,0,80,"c"],
+["Aloo paratha","aloo paratha|aloo parantha|stuffed paratha|gobi paratha|paneer paratha",270,6,38,11,3,1.8,30,3,100,"c"],
+["Puri","puri|poori",350,7.5,45,16,3,2.5,25,0,25,"c"],
+["Naan","naan|garlic naan|butter naan|kulcha|tandoori roti",290,9,50,5.5,2,2,60,0,90,"c"],
+["Bhatura","bhatura|bhature",340,8,48,13,2.5,2,30,0,90,"c"],
+["Thepla","thepla|methi thepla",290,9,42,10,5,3,60,3,40,"c"],
+["Bread slice (white)","bread|white bread|bread slice|toast|sandwich bread",265,9,49,3.2,2.7,3.6,150,0,30,"c"],
+["Brown bread","brown bread|whole wheat bread|multigrain bread",250,10,44,3.5,5,2.5,100,0,30,"c"],
+["Pav (bun)","pav|ladi pav|bun",290,8,52,5,2.5,2.5,60,0,40,"c"],
+["Idli","idli|idly",135,4,28,0.5,1,0.7,15,0,40,"c"],
+["Dosa (plain)","dosa|plain dosa|dosai|sada dosa",170,4,29,4,1.2,1,20,0,80,"c"],
+["Masala dosa","masala dosa|mysore dosa",180,4,28,5.5,2,1.2,25,5,150,"c"],
+["Uttapam","uttapam|uttappam|oothappam",150,4.5,24,4,1.5,1.2,40,3,100,"c"],
+["Medu vada","vada|medu vada|wada|vadai",290,9,28,15,3,2,40,0,50,"c"],
+["Sambar","sambar|sambhar",55,2.5,8,1.5,1.8,1,30,4,150,"k"],
+["Rasam","rasam",28,1,4.5,0.8,0.7,0.7,15,4,150,"k"],
+["Chutney","chutney|coconut chutney|green chutney",160,2,8,14,3,1,20,2,30,""],
+["Upma","upma|rava upma|suji upma",150,3.5,22,5.5,2,1,20,1,200,""],
+["Curd rice","curd rice|thayir sadam|dahi chawal|dahi rice",120,3.5,19,3.5,0.5,0.3,70,0,200,""],
+["Lemon rice","lemon rice|puliyogare|tamarind rice",150,3,26,3.8,1.2,1,20,5,200,""],
+["Sabudana khichdi","sabudana khichdi|sabudana|sago khichdi",190,2,30,7,1,0.8,20,2,200,""],
+["Poha","poha|pohe|flattened rice",130,2.5,24,3,1.5,2.5,15,2,200,""],
+["Besan chilla","chilla|cheela|besan chilla|besan cheela|moong dal chilla",190,9,22,7,4,2.5,40,1,70,"c"],
+["Dhokla","dhokla|khaman|khaman dhokla",160,6,24,4.5,2.5,1.5,40,0,40,"c"],
+["Oats (dry)","oats|oatmeal|porridge",389,17,66,7,10,4.7,54,0,40,""],
+["Maggi / instant noodles","maggi|instant noodles|ramen",440,9,60,18,2.5,3,40,0,70,"c"],
+["Chowmein","chowmein|chow mein|hakka noodles|noodles",150,4,22,5.5,1.5,1,20,3,250,""],
+["Veg sandwich","sandwich|veg sandwich|grilled sandwich|cheese sandwich",200,7,32,8,2.5,1.5,80,4,150,"c"],
+["Pav bhaji (with pav)","pav bhaji",150,4.5,22,5,3,1.5,40,8,300,""],
+["Vada pav","vada pav|wada pav",250,5.5,33,10,2.5,1.5,30,3,120,"c"],
+["Samosa","samosa",262,5,28,14,2,1.5,20,2,80,"c"],
+["Kachori","kachori|kachauri",390,7,42,22,3,2,30,0,60,"c"],
+["Pakora / bhajiya","pakora|pakoda|bhajiya|bhajji|onion bhaji|fritters",300,8,28,17,4,2,40,2,20,"c"],
+["Pani puri","pani puri|golgappa|puchka|gol gappa",180,3,28,6,2,1,15,4,25,"c"],
+["Bhel / chaat","bhel|bhel puri|sev puri|chaat",180,4,30,5,2.5,1.2,30,5,150,""],
+["Momos","momo|dumpling",160,8,22,4.5,1.2,1,20,1,25,"c"],
+["Dal (tadka)","dal|daal|dal tadka|dal fry|toor dal|moong dal|masoor dal|arhar dal|yellow dal|dal curry",90,5.5,12,2.5,2.5,1.5,25,1,150,"k"],
+["Dal makhani","dal makhani|black dal|kali dal",140,5.5,12,8,4,2,60,1,150,"k"],
+["Rajma","rajma|rajma masala|kidney beans",125,6.5,15,4,5,2,40,2,150,"k"],
+["Chole (chana masala)","chole|chana masala|chickpea|kabuli chana|chana|chola",150,7,20,5,6,2.5,50,3,150,"k"],
+["Sprouts","sprouts|moong sprouts|sprouted moong",30,3,5.9,0.2,1.8,0.9,13,13,100,""],
+["Kadhi","kadhi|kadi|punjabi kadhi",80,3,7,4.5,0.5,0.5,70,1,150,"k"],
+["Rajma chawal","rajma chawal|rajma rice",125,5,22,2,3,1.5,30,1,300,""],
+["Chole chawal","chole chawal|chana chawal",130,5.5,23,2.5,3.5,1.5,30,1,300,""],
+["Chole bhature","chole bhature|chhole bhature|chola bhatura",230,7,28,10,4,2,40,2,300,""],
+["Dal chawal","dal chawal|dal rice|dal bhat",120,4,22,2,1.5,0.8,20,0,300,""],
+["Soya chunks (dry)","soya chunks|soy chunks|nutrela|soya|soy",345,52,33,0.5,13,15,350,0,30,""],
+["Peanuts","peanut|groundnut|moongfali|mungfali",567,26,16,49,8.5,2.1,90,0,30,""],
+["Roasted chana","roasted chana|bhuna chana|chana roasted|futana",370,22,58,5.5,17,5,200,0,30,""],
+["Makhana","makhana|fox nut|lotus seeds|phool makhana",350,10,76,1,8,1.4,60,0,30,""],
+["Mixed veg sabzi","sabzi|sabji|veg curry|mixed veg|vegetable curry|mix veg|subzi|veg sabzi|vegetable",80,2,8,4.5,2.5,1,30,10,120,"k"],
+["Aloo sabzi","aloo sabzi|aloo gobi|aloo|aloo matar|jeera aloo|aloo curry|potato curry",100,2,13,4.5,2,1,20,12,120,"k"],
+["Bhindi","bhindi|okra|bhindi masala|lady finger",90,2,8,6,3,1,60,10,120,"k"],
+["Palak paneer","palak paneer|saag paneer|saag|palak",150,8,5,11,1.8,2.2,150,8,150,"k"],
+["Paneer curry","paneer butter masala|paneer masala|shahi paneer|kadai paneer|matar paneer|paneer curry|paneer makhani|paneer tikka masala",190,7.5,8,14,1,1,120,3,150,"k"],
+["Paneer bhurji","paneer bhurji|paneer burji",210,11,5,16,1,1,180,2,100,"k"],
+["Paneer","paneer|cottage cheese|raw paneer",265,18,1.5,20.5,0,0.2,480,0,50,""],
+["Paneer tikka","paneer tikka",230,14,5,17,1,1,250,3,25,"c"],
+["Potato (boiled)","potato|boiled potato|baked potato",87,1.9,20,0.1,1.8,0.6,8,13,150,"c"],
+["Salad","salad|cucumber|kheera|tomato|carrot|onion|raw veggies|veggies",20,1,4,0.2,1.5,0.6,25,15,100,""],
+["Cheese","cheese|cheese slice|amul cheese|processed cheese",320,20,4,25,0,0.5,600,0,20,"c"],
+["Egg (boiled)","egg|boiled egg|anda|hard boiled egg",155,13,1.1,11,0,1.2,50,0,50,"c"],
+["Omelette / fried egg","omelette|omelet|fried egg|egg omelette|egg bhurji|masala omelette",190,11,1,14,0,1.5,55,0,60,"c"],
+["Egg white","egg white|white egg",52,11,0.7,0.2,0,0.1,7,0,33,"c"],
+["Egg curry","egg curry|anda curry|anda masala",130,8,4,9,1,1.3,40,1,150,"k"],
+["Chicken (grilled/boiled)","chicken|chicken breast|grilled chicken|boiled chicken|roast chicken|chicken fry|chicken piece",165,31,0,3.6,0,1,15,0,100,""],
+["Chicken curry","chicken curry|chicken masala|chicken gravy|kadai chicken|chicken kasa",140,13,4,8,1,1.2,20,2,150,"k"],
+["Butter chicken","butter chicken|chicken makhani",150,10,6,10,1,1,40,2,150,"k"],
+["Tandoori chicken / tikka","tandoori chicken|chicken tikka|tikka|chicken kebab|kebab",150,22,3,5.5,0.5,1.4,25,1,120,""],
+["Mutton curry","mutton curry|mutton|lamb curry|mutton masala|gosht",190,15,3,13,0.5,2,25,1,150,"k"],
+["Fish curry","fish curry|fish|machli|fish fry|fish masala",130,13,3,7,0.5,1,40,1,150,"k"],
+["Biryani (chicken/egg/mutton)","chicken biryani|biryani|egg biryani|mutton biryani|hyderabadi biryani",168,8.5,21,5.5,1.2,1.3,25,2,150,"k"],
+["Veg biryani / pulao","veg biryani|pulao|pulav|veg pulao|vegetable biryani|tehri",140,3,22,4.5,1.5,1,20,2,150,"k"],
+["Fried rice","fried rice|egg fried rice|veg fried rice|schezwan rice",160,4,24,5.5,1,1,20,2,150,"k"],
+["Khichdi","khichdi|khichri|moong khichdi",110,4,18,2.5,1.5,1.2,20,0,150,"k"],
+["Rice (cooked)","rice|chawal|steamed rice|white rice|plain rice|bhaat|jeera rice|bhat",130,2.7,28,0.3,0.4,0.2,10,0,150,"k"],
+["Brown rice","brown rice",112,2.6,23,0.9,1.8,0.5,10,0,150,"k"],
+["Milk","milk|doodh|cow milk|toned milk|full cream milk|buffalo milk",62,3.2,4.8,3.5,0,0.1,120,1,250,"l"],
+["Curd / dahi","curd|dahi|yogurt|yoghurt|plain curd|greek yogurt",60,3.1,4.7,3.3,0,0.1,120,1,100,"k"],
+["Raita","raita|boondi raita|veg raita",55,2.5,5,2.5,0.3,0.2,90,1,100,"k"],
+["Buttermilk (chaas)","chaas|chhaas|buttermilk|butter milk|chhach|mattha|chach|spiced buttermilk",20,1,2,0.9,0,0.1,35,0,250,"l"],
+["Lassi","lassi|sweet lassi|mango lassi|salted lassi",90,2.8,14,2.5,0,0.1,90,1,250,"l"],
+["Chai (milk & sugar)","chai|tea|masala chai|milk tea|cutting chai|adrak chai|doodh chai",50,1.5,7,1.7,0,0.1,50,0,150,"l cu150"],
+["Coffee (milk & sugar)","coffee|filter coffee|milk coffee|cappuccino|latte|cold coffee",50,1.7,6.5,2,0,0.1,55,0,150,"l cu150"],
+["Black coffee / green tea","black coffee|green tea|black tea|lemon tea|tea without sugar|coffee without sugar|plain tea",2,0.1,0.3,0,0,0,2,0,150,"l cu150"],
+["Protein shake (whey)","protein shake|whey|whey protein|protein powder|protein scoop",400,80,8,6,0,1,400,0,30,""],
+["Coconut water","coconut water|nariyal pani|tender coconut|nariyal paani",19,0.7,3.7,0.2,1,0.3,24,2.4,250,"l"],
+["Fruit juice","juice|fruit juice|packed juice|orange juice|mango juice|real juice|sugarcane juice|ganne ka ras",50,0.5,12,0.1,0.2,0.2,10,10,250,"l"],
+["Cold drink","cold drink|coke|pepsi|sprite|thums up|soda|soft drink|fanta|limca|maaza|cola",42,0,10.6,0,0,0,2,0,250,"l"],
+["Sugar","sugar|chini|cheeni",400,0,100,0,0,0.1,1,0,5,"ts4"],
+["Ghee","ghee|desi ghee",900,0,0,100,0,0,0,0,5,"ts5"],
+["Butter","butter|makhan|amul butter",720,0.5,0.1,80,0,0,15,0,10,"ts5"],
+["Cooking oil","oil|cooking oil|mustard oil|sunflower oil|olive oil",900,0,0,100,0,0,0,0,5,"ts5"],
+["Jaggery","jaggery|gur|gud",383,0.4,98,0.1,0,3,80,0,10,"ts5"],
+["Honey","honey|shahad",304,0.3,82,0,0,0.4,6,0.5,7,"ts7"],
+["Peanut butter","peanut butter",590,25,20,50,6,1.9,49,0,16,"ts5"],
+["Banana","banana|kela",90,1.1,23,0.3,2.6,0.3,6,9,110,"c"],
+["Apple","apple|seb",52,0.3,14,0.2,2.4,0.1,6,5,180,"c"],
+["Mango","mango|aam",60,0.8,15,0.4,1.6,0.2,11,36,200,"c"],
+["Orange","orange|santra|mosambi|sweet lime",47,0.9,12,0.1,2.4,0.1,40,53,130,"c"],
+["Papaya","papaya|papita",43,0.5,11,0.3,1.7,0.3,20,60,150,""],
+["Watermelon","watermelon|tarbooz",30,0.6,7.6,0.2,0.4,0.2,7,8,150,""],
+["Grapes","grapes|angoor",69,0.7,18,0.2,0.9,0.4,10,10,100,""],
+["Guava","guava|amrood",68,2.6,14,1,5.4,0.3,18,228,100,"c"],
+["Pomegranate","pomegranate|anar",83,1.7,19,1.2,4,0.3,10,10,100,""],
+["Dates","date|khajoor|khajur",280,2.5,75,0.4,8,1,40,0,8,"c"],
+["Almonds","almond|badam",579,21,22,50,12,3.7,260,0,1.2,"c"],
+["Cashews","cashew|kaju",553,18,30,44,3.3,6.7,37,0,1.5,"c"],
+["Walnuts","walnut|akhrot",654,15,14,65,6.7,2.9,98,1,4,"c"],
+["Gulab jamun","gulab jamun|gulabjamun",310,4.5,48,11,0.3,0.7,80,0,50,"c"],
+["Jalebi","jalebi",396,2,70,12,0.5,0.8,20,0,30,"c"],
+["Rasgulla","rasgulla|rosogolla|rasagulla",182,4,37,2,0,0.3,80,0,50,"c"],
+["Laddu","laddu|ladoo|besan ladoo|motichoor",450,8,55,22,2,2,30,0,40,"c"],
+["Barfi / peda","barfi|burfi|kaju katli|peda|sandesh",425,8,60,17,0.5,0.8,150,0,30,"c"],
+["Kheer / payasam","kheer|payasam|payesh|seviyan",130,3.5,20,4,0.2,0.2,100,0,150,"k"],
+["Halwa","halwa|sooji halwa|gajar halwa|suji halwa|halva",280,4,40,12,1,1,30,0,100,""],
+["Ice cream / kulfi","ice cream|icecream|kulfi",207,3.5,24,11,0.5,0.1,128,0.6,60,""],
+["Chocolate","chocolate|dairy milk|cadbury|kitkat|choco",535,7.7,59,30,3.4,2.3,190,0,10,"c"],
+["Biscuits","biscuit|parle g|marie|cookie|rusk|digestive",450,7,76,12,1,1.5,40,0,7,"c"],
+["Chips","chips|lays|potato chips|kurkure|wafers",540,6,52,34,4,1,20,10,30,""],
+["French fries","french fries|fries|french fry|finger chips",312,3.4,41,15,3.8,0.8,18,5,100,""],
+["Namkeen / bhujia","namkeen|bhujia|sev|mixture|aloo bhujia|farsan|chakli|murukku|mathri",580,18,45,35,5,4,80,0,30,""],
+["Papad (roasted)","papad|papadam|appalam|roasted papad",286,21,46,2,5,6,40,0,12,"c"],
+["Pizza (slice)","pizza|pizza slice",270,11,33,10,2.3,2,180,2,100,"c"],
+["Burger","burger|veg burger|chicken burger|aloo tikki burger",250,12,30,9,2,2.5,80,3,170,"c"]
+];
+const FOODS=RAW.map(r=>{
+  const fl=(r[11]||"").split(" ");
+  const o={n:r[0],v:r.slice(2,10),d:r[10],c:fl.includes("c"),k:fl.includes("k"),l:fl.includes("l")};
+  fl.forEach(t=>{let m;if((m=t.match(/^cu(\d+)$/)))o.cu=+m[1];if((m=t.match(/^ts(\d+)$/)))o.ts=+m[1];});
+  o.at=r[1].split("|").map(a=>toks(norm(a)));
+  return o;
+});
+
+/* Exercises: MET value, optional typical speed km/h (for distance), reps = kcal per rep at 70 kg */
+const EXRAW=[
+["Walking","walk|walking|walked|stroll|morning walk|evening walk|brisk walk|step",3.5,{sp:5,steps:1}],
+["Jogging","jog|jogging|jogged",7,{sp:7.5,steps:1}],
+["Running","run|running|ran|sprint",9.8,{sp:9.5,steps:1}],
+["Treadmill","treadmill",6,{sp:7}],
+["Cycling","cycling|cycle|cycled|biking|bike ride|spinning",7.5,{sp:15}],
+["Swimming","swim|swimming|swam",6,{sp:2}],
+["Yoga","yoga|asana|pranayam|pranayama",2.8,{}],
+["Surya namaskar","surya namaskar|suryanamaskar|sun salutation",4,{reps:5,repsLabel:"rounds"}],
+["Gym / weight training","gym|weights|weight training|lifting|strength|strength training|workout|weightlifting|lifting weights",5,{}],
+["HIIT / circuit","hiit|circuit|crossfit|cardio",8,{}],
+["Zumba / dance","zumba|dance|dancing|aerobics",6,{}],
+["Skipping rope","skipping|jump rope|rope skipping",11,{}],
+["Stair climbing","stairs|stair climbing|climbing stairs",8,{}],
+["Badminton","badminton",5.5,{}],
+["Cricket","cricket",4.8,{}],
+["Football","football|soccer",7,{}],
+["Tennis","tennis",7,{}],
+["Basketball","basketball",8,{}],
+["Table tennis","table tennis|ping pong",4,{}],
+["Kabaddi","kabaddi|kho kho",8,{}],
+["Stretching","stretching|mobility",2.3,{}],
+["Housework","housework|cleaning|house cleaning|sweeping|mopping",3.3,{}],
+["Trekking / hiking","hiking|trek|trekking",6,{}],
+["Elliptical","elliptical|cross trainer",5,{}],
+["Rowing","rowing|rower",7,{}],
+["Plank","plank",4,{}],
+["Push-ups","pushup|push up",5,{reps:0.4}],
+["Sit-ups / crunches","situp|sit up|crunch|abs",5,{reps:0.25}],
+["Squats","squat|bodyweight squat",5,{reps:0.4}],
+["Lunges","lunge",5,{reps:0.35}],
+["Pull-ups","pullup|pull up|chinup|chin up",5,{reps:1}],
+["Burpees","burpee",8,{reps:0.8}],
+["Jumping jacks","jumping jack|jumpingjack",8,{reps:0.2}]
+];
+const EXS=EXRAW.map(r=>Object.assign({n:r[0],met:r[2],at:r[1].split("|").map(a=>toks(norm(a)))},r[3]));
+
+const UN="kgs?|kilos?|kilograms?|grams?|gms?|gm|g|mls?|litres?|liters?|l|cups?|glass(?:es)?|katoris?|katora|bowls?|plates?|pieces?|pcs?|nos|slices?|tbsp|tablespoons?|tsp|teaspoons?|scoops?|spoons?|handfuls?|servings?|packets?|packs?";
+const UA="kgs?|kilos?|cups?|glass(?:es)?|katoris?|katora|bowls?|plates?|pieces?|pcs?|nos|slices?|tbsp|tablespoons?|tsp|teaspoons?|scoops?|spoons?|handfuls?|servings?|packets?|packs?";
+const RE_UNIT_NUM=new RegExp("(\\d+(?:\\.\\d+)?)\\s*("+UN+")\\b");
+const RE_UNIT_ALONE=new RegExp("\\b("+UA+")\\b");
+function unitClass(u){
+  if(!u)return "";
+  if(/^(kg|kgs|kilo|kilos|kilogram|kilograms)$/.test(u))return "kg";
+  if(/^(g|gm|gms|gram|grams)$/.test(u))return "g";
+  if(/^(ml|mls)$/.test(u))return "ml";
+  if(/^(l|litre|litres|liter|liters)$/.test(u))return "l";
+  if(/^cups?$/.test(u))return "cup";
+  if(/^glass/.test(u))return "glass";
+  if(/^(katori|katoris|katora)$/.test(u))return "katori";
+  if(/^bowls?$/.test(u))return "bowl";
+  if(/^plates?$/.test(u))return "plate";
+  if(/^(tbsp|tablespoons?)$/.test(u))return "tbsp";
+  if(/^(tsp|teaspoons?|spoons?)$/.test(u))return "tsp";
+  if(/^handfuls?$/.test(u))return "handful";
+  return "piece";
+}
+function gramsFor(f,q,uc){
+  const d=f.d;
+  switch(uc){
+    case "g":case "ml":return q;
+    case "kg":case "l":return q*1000;
+    case "cup":return q*(f.cu||(f.l?240:f.k?d*1.3:d));
+    case "glass":return q*(f.l?250:d*1.5);
+    case "katori":return q*(f.l?150:d);
+    case "bowl":return q*(f.l?250:f.k?d*1.5:d);
+    case "plate":return q*(f.k?d*2:f.c?d*4:d);
+    case "tbsp":return q*(f.ts||5)*3;
+    case "tsp":return q*(f.ts||5);
+    case "handful":return q*30;
+    default:return q*d;
+  }
+}
+function mealName(w){
+  w=w.toLowerCase();
+  if(/break|brunch/.test(w))return "Breakfast";
+  if(/lunch/.test(w))return "Lunch";
+  if(/dinner|supper/.test(w))return "Dinner";
+  return "Snacks";
+}
+function fmtMin(m){m=Math.round(m);return m>=60?(Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":"")):(m+" min");}
+function parseDuration(s){
+  let mins=0,found=false,m;
+  if((m=/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|hr|h)\b/.exec(s))){mins+=parseFloat(m[1])*60;found=true;}
+  if((m=/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|min)\b/.exec(s))){mins+=parseFloat(m[1]);found=true;}
+  return found?mins:null;
+}
+const KCAL_RE=/(\d+(?:\.\d+)?)\s*(?:kcal|cals?|calories?)\b/;
+function parseWorkout(p,ex){
+  const w=Number(S.settings.weight)||70;
+  let mult=1;
+  if(/\b(light|easy|slow|slowly|casual|gentle)\b/.test(p))mult=0.8;
+  else if(/\b(intense|heavy|vigorous|fast|hard|power)\b/.test(p))mult=1.25;
+  const kc=KCAL_RE.exec(p);
+  const mins=parseDuration(p);
+  let steps=null,km=null,m;
+  if((m=/(\d+(?:\.\d+)?)\s*k\s*steps?\b/.exec(p)))steps=parseFloat(m[1])*1000;
+  else if((m=/(\d+)\s*steps?\b/.exec(p)))steps=parseFloat(m[1]);
+  m=/(\d+(?:\.\d+)?)\s*(?:km|kms|kilometers?|kilometres?)\b/.exec(p)||/\b(\d+(?:\.\d+)?)\s*k\b(?!\s*steps?)/.exec(p);
+  if(m)km=parseFloat(m[1]);
+  const mk=(kcal,qty)=>({type:"workout",name:ex.n,qty,kcal:Math.max(0,Math.round(kcal))});
+  if(kc)return mk(parseFloat(kc[1]),mins?fmtMin(mins):"manual");
+  if(ex.reps){
+    const sx=/(\d+)x(\d+)/.exec(p);
+    let reps=null;
+    if(sx)reps=Number(sx[1])*Number(sx[2]);
+    else{
+      const r=p.replace(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|hr|h|minutes?|mins?|min)\b/g," ");
+      const n=/(\d+)/.exec(r);
+      if(n)reps=Number(n[1]);
+    }
+    if(reps&&!(mins&&!sx&&reps===mins))return mk(reps*ex.reps*(w/70)*mult,reps+" "+(ex.repsLabel||"reps"));
+    if(mins)return mk(ex.met*w*(mins/60)*mult,fmtMin(mins));
+    return {ask:"How many "+(ex.repsLabel||"reps")+" of "+ex.n.toLowerCase()+"? For example “20 "+ex.n.toLowerCase().replace(/[^a-z ]/g,"")+"”."};
+  }
+  if(steps&&ex.steps)return mk(steps*0.00057*w,Math.round(steps).toLocaleString("en-IN")+" steps");
+  if(km&&ex.sp){
+    const hrs=mins?mins/60:km/ex.sp;
+    return mk(ex.met*w*hrs*mult,f1(km)+" km"+(mins?" in "+fmtMin(mins):""));
+  }
+  if(mins)return mk(ex.met*w*(mins/60)*mult,fmtMin(mins));
+  return {ask:"How long was your "+ex.n.toLowerCase()+"? For example “30 min "+ex.n.toLowerCase().split(" ")[0]+"”."};
+}
+function processPiece(p,out){
+  const it=toks(p);
+  const kc=KCAL_RE.exec(p);
+  const exm=findIn(EXS,it);
+  const ex=exm&&exm.item;
+  if(ex){const r=parseWorkout(p,ex);if(r.ask)out.ask.push(r.ask);else out.add.push(r);return;}
+  if(kc&&/\b(burn|burnt|burned|lost)\b/.test(p)){out.add.push({type:"workout",name:"Activity",qty:"manual",kcal:Math.round(parseFloat(kc[1]))});return;}
+  if(kc){
+    const num=re=>{const m=re.exec(p);return m?parseFloat(m[1]):0;};
+    const rp=/(\d+(?:\.\d+)?)\s*g?\s*(?:p|protein)\b/,rc=/(\d+(?:\.\d+)?)\s*g?\s*(?:c|carbs?|carbohydrates?)\b/,rf=/(\d+(?:\.\d+)?)\s*g?\s*(?:f|fats?)\b/;
+    const P=num(rp),C=num(rc),F=num(rf);
+    let name=p.replace(KCAL_RE," ").replace(rp," ").replace(rc," ").replace(rf," ").replace(/\d+(?:\.\d+)?/g," ").replace(/\s+/g," ").trim();
+    name=name?name.charAt(0).toUpperCase()+name.slice(1):"Custom item";
+    out.add.push({type:"food",name,qty:"1 serving (manual)",g:0,kcal:Math.round(parseFloat(kc[1])),p:P,c:C,f:F,fiber:0,iron:0,ca:0,vc:0});
+    return;
+  }
+  let s=p,mult=1;
+  if(/\b(small|mini)\b/.test(s))mult=0.75;
+  if(/\b(large|big|extra)\b/.test(s))mult=1.3;
+  let qty=null,unit=null,m=RE_UNIT_NUM.exec(s);
+  if(m){qty=parseFloat(m[1]);unit=m[2];s=s.replace(m[0]," ");}
+  else{
+    m=RE_UNIT_ALONE.exec(s);
+    if(m){unit=m[1];s=s.replace(m[0]," ");}
+    const n=/(\d+(?:\.\d+)?)/.exec(s);
+    if(n){qty=parseFloat(n[1]);s=s.replace(n[0]," ");}
+  }
+  if(qty==null)qty=1;
+  const work=toks(s.replace(/\s+/g," ").trim());
+  const found=[];
+  for(let r=0;r<3;r++){
+    const mm=findIn(FOODS,work);
+    if(!mm)break;
+    found.push(mm);
+    for(let j=0;j<mm.n;j++)work[mm.start+j]="";
+  }
+  if(!found.length){out.unk.push(p.replace(/\d+(?:\.\d+)?/g," ").replace(/\s+/g," ").trim()||p);return;}
+  found.sort((a,b)=>a.start-b.start);
+  found.forEach((fm,idx)=>addFood(out,fm.item,idx===0?qty:1,idx===0?unit:null,idx===0?mult:1));
+}
+function addFood(out,f,qty,unit,mult){
+  const uc=unitClass(unit);
+  const g=gramsFor(f,qty,uc)*mult;
+  const k=g/100;
+  const v=f.v;
+  let qtxt;
+  if(uc==="g"||uc==="ml"||uc==="kg"||uc==="l")qtxt=f1(qty)+" "+unit;
+  else{
+    if(uc==="")qtxt=f1(qty)+(f.c?" pc":(qty===1?" serving":" servings"));
+    else if(uc==="piece")qtxt=f1(qty)+" "+unit.replace(/^(pcs?|pieces?|nos)$/,"pc");
+    else qtxt=f1(qty)+" "+uc;
+    qtxt+=" ("+Math.round(g)+(f.l?" ml":" g")+")";
+  }
+  out.add.push({type:"food",name:f.n,qty:qtxt,g:Math.round(g),kcal:Math.round(v[0]*k),p:v[1]*k,c:v[2]*k,f:v[3]*k,fiber:v[4]*k,iron:v[5]*k,ca:v[6]*k,vc:v[7]*k});
+}
+function pieces(s){
+  if(!/^\d/.test(s))return [s];
+  return s.split(/\s+(?=\d+(?:\.\d+)?\s*[a-z])(?!\d+(?:\.\d+)?\s*(?:min|mins|minute|minutes|sec|secs|hr|hrs|hour|hours)\b)/);
+}
+function parseMessage(text){
+  let t=String(text).replace(/(\d),(\d{3})/g,"$1$2");
+  let meal=null;
+  const mm=/^\s*(breakfast|brunch|lunch|dinner|supper|snacks?|evening snack|tea time)\b\s*[:\-–]?\s*/i.exec(t)||/\bfor\s+(breakfast|brunch|lunch|dinner|supper|snacks?)\b/i.exec(t);
+  if(mm){meal=mealName(mm[1]);t=t.replace(mm[0]," ");}
+  const out={meal,add:[],unk:[],ask:[]};
+  t.split(/[,;\n+&]|\band\b|\baur\b|\bplus\b/i).forEach(seg=>{
+    const s=norm(seg).replace(/^(?:(?:i|had|ate|eaten|eat|just|also|then|log|logged|add|today|me|my|for|did|done|went)\s+)+/,"");
+    if(!s)return;
+    pieces(s).forEach(p=>processPiece(p,out));
+  });
+  return out;
+}
+//>>PARSER
+
+/* ---------- UI ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const ds=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseDs=s=>{const a=s.split("-").map(Number);return new Date(a[0],a[1]-1,a[2]);};
+const todayStr=()=>ds(new Date());
+const fmt=n=>Math.round(n).toLocaleString("en-IN");
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MEALS=["Breakfast","Lunch","Snacks","Dinner"];
+
+const ICONS={
+  left:'<path d="m15 18-6-6 6-6"/>',right:'<path d="m9 18 6-6-6-6"/>',down:'<path d="m6 9 6 6 6-6"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>'
+};
+const ic=n=>'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+ICONS[n]+'</svg>';
+document.querySelectorAll("[data-ic]").forEach(e=>{e.innerHTML=ic(e.dataset.ic);});
+
+let view="day",cur=todayStr(),mc={y:new Date().getFullYear(),m:new Date().getMonth()},chatOpen=true,clearArmed=false;
+
+const getEntries=d=>(S.days[d]&&S.days[d].entries)||[];
+function totals(d){
+  const t={kcal:0,p:0,c:0,f:0,fiber:0,iron:0,ca:0,vc:0,burn:0,n:0};
+  for(const e of getEntries(d)){
+    t.n++;
+    if(e.type==="workout")t.burn+=e.kcal;
+    else{t.kcal+=e.kcal;t.p+=e.p;t.c+=e.c;t.f+=e.f;t.fiber+=e.fiber||0;t.iron+=e.iron||0;t.ca+=e.ca||0;t.vc+=e.vc||0;}
+  }
+  t.net=t.kcal-t.burn;
+  return t;
+}
+const goals=()=>{const k=Number(S.settings.kcal)||2000;return{kcal:k,p:Number(S.settings.protein)||90,c:Math.round(k*0.5/4),f:Math.round(k*0.28/9)};};
+const dayLabel=d=>{const x=parseDs(d);return (d===todayStr()?"Today, ":["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][x.getDay()]+", ")+x.getDate()+" "+MONTHS[x.getMonth()];};
+
+function ringSVG(net,goal){
+  const sz=132,sw=12,r=(sz-sw)/2,C=2*Math.PI*r;
+  const frac=goal>0?Math.max(0,Math.min(1,net/goal)):0;
+  const col=net>goal?"var(--over)":"var(--cal)";
+  let h='<svg viewBox="0 0 '+sz+' '+sz+'" width="'+sz+'" height="'+sz+'" aria-hidden="true"><circle cx="66" cy="66" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="'+sw+'"/>';
+  if(frac>0)h+='<circle cx="66" cy="66" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-frac))+'" transform="rotate(-90 66 66)"/>';
+  return h+"</svg>";
+}
+function macroRow(label,val,goal,color){
+  const pct=goal>0?Math.min(100,val/goal*100):0;
+  return '<div class="mrow"><span>'+label+'</span><div class="bar" style="--c:'+color+'"><i style="width:'+pct+'%"></i></div><span class="v">'+f1(val)+' / '+goal+' g</span></div>';
+}
+function microCell(label,val,ref,unit){
+  const pct=Math.min(100,val/ref*100);
+  return '<div>'+label+'<b>'+f1(val)+'<span style="font-weight:400;color:var(--ink2);font-size:11px"> '+unit+'</span></b><div class="bar sm" style="--c:var(--ink2)"><i style="width:'+pct+'%"></i></div></div>';
+}
+function entryHTML(e){
+  const neg=e.type==="workout";
+  const macs=neg?"":'<div class="mac"><span style="--c:var(--pro)">P '+f1(e.p)+'</span><span style="--c:var(--carb)">C '+f1(e.c)+'</span><span style="--c:var(--fat)">F '+f1(e.f)+'</span></div>';
+  return '<div class="ent"><div><span class="n">'+esc(e.name)+'</span><small>'+esc(e.qty)+'</small>'+macs+'</div><div class="k'+(neg?" neg":"")+'">'+(neg?"−":"")+fmt(e.kcal)+' kcal</div><button class="ib sm" data-act="del" data-id="'+esc(e.id)+'" aria-label="Delete '+esc(e.name)+'">'+ic("trash")+'</button></div>';
+}
+function dayHTML(){
+  const t=totals(cur),g=goals(),left=g.kcal-t.net;
+  let h='<section class="hero"><div class="ring">'+ringSVG(t.net,g.kcal)+'<div class="mid"><b>'+(t.net<0?"−":"")+fmt(Math.abs(t.net))+'</b><span>net kcal</span></div></div><div class="kv">'
+    +'<div><span class="l">Eaten</span><b>'+fmt(t.kcal)+'</b></div>'
+    +'<div class="burn"><span class="l">Burned</span><b>−'+fmt(t.burn)+'</b></div>'
+    +'<div><span class="l">Goal</span><b>'+fmt(g.kcal)+'</b></div>'
+    +'<div class="'+(left<0?"over":"")+'"><span class="l">'+(left<0?"Over by":"Left")+'</span><b>'+fmt(Math.abs(left))+'</b></div></div></section>';
+  h+='<section class="card">'+macroRow("Protein",t.p,g.p,"var(--pro)")+macroRow("Carbs",t.c,g.c,"var(--carb)")+macroRow("Fat",t.f,g.f,"var(--fat)")
+    +'<div class="micro">'+microCell("Fibre",t.fiber,30,"g")+microCell("Iron",t.iron,18,"mg")+microCell("Calcium",t.ca,1000,"mg")+microCell("Vitamin C",t.vc,80,"mg")+'</div></section>';
+  const es=getEntries(cur).slice().sort((a,b)=>a.ts-b.ts);
+  if(!es.length){
+    h+='<p class="empty">Nothing logged for this day yet. Type what you ate or did, like “2 roti, 1 katori dal” or “30 min walking”.</p>';
+  }else{
+    h+='<section>';
+    MEALS.forEach(m=>{
+      const items=es.filter(e=>e.type==="food"&&e.meal===m);
+      if(!items.length)return;
+      h+='<div class="grp"><h3><span>'+m+'</span><span>'+fmt(items.reduce((a,e)=>a+e.kcal,0))+' kcal</span></h3>'+items.map(entryHTML).join("")+'</div>';
+    });
+    const ws=es.filter(e=>e.type==="workout");
+    if(ws.length)h+='<div class="grp"><h3><span>Workout</span><span>−'+fmt(ws.reduce((a,e)=>a+e.kcal,0))+' kcal</span></h3>'+ws.map(entryHTML).join("")+'</div>';
+    h+='</section>';
+  }
+  return h;
+}
+function barChart(vals,goal,color,n){
+  const W=320,H=90,mx=Math.max(goal*1.15,...vals,1),bw=W/n;
+  let s='<svg class="chart" viewBox="0 0 '+W+' '+(H+14)+'" role="img" aria-label="Bar chart by day">';
+  vals.forEach((v,i)=>{if(v>0){const hh=v/mx*H;s+='<rect x="'+(i*bw+1)+'" y="'+(H-hh)+'" width="'+(bw-2)+'" height="'+hh+'" rx="1.5" fill="'+color+'"/>';}});
+  const gy=H-goal/mx*H;
+  s+='<line x1="0" x2="'+W+'" y1="'+gy+'" y2="'+gy+'" stroke="var(--ink2)" stroke-dasharray="4 3" stroke-width="1"/>';
+  [1,7,14,21,28].forEach(d=>{if(d<=n)s+='<text x="'+((d-1)*bw+bw/2)+'" y="'+(H+11)+'" font-size="9" text-anchor="middle" fill="var(--ink2)">'+d+'</text>';});
+  return s+"</svg>";
+}
+function monthHTML(){
+  const g=goals(),first=new Date(mc.y,mc.m,1),n=new Date(mc.y,mc.m+1,0).getDate(),lead=first.getDay();
+  const tstr=todayStr();
+  let logged=0,sumNet=0,sumP=0,sumBurn=0;
+  const nets=[],pros=[];
+  let cells="";
+  ["S","M","T","W","T","F","S"].forEach(d=>{cells+='<div class="dow">'+d+'</div>';});
+  for(let i=0;i<lead;i++)cells+='<div class="cell blank"></div>';
+  for(let d=1;d<=n;d++){
+    const key=mc.y+"-"+pad(mc.m+1)+"-"+pad(d),t=totals(key),has=t.kcal>0;
+    nets.push(has?Math.max(0,t.net):0);pros.push(has?t.p:0);
+    sumBurn+=t.burn;
+    let cls="cell";
+    if(has){logged++;sumNet+=t.net;sumP+=t.p;cls+=t.net>g.kcal*1.05?" over":(t.net>=g.kcal*0.85?" ok":" low");}
+    else cls+=" none";
+    if(key===tstr)cls+=" today";
+    cells+='<button class="'+cls+'" data-act="open" data-d="'+key+'" aria-label="'+d+' '+MONTHS[mc.m]+(has?", "+fmt(t.net)+" net kcal, "+fmt(t.p)+" g protein":", nothing logged")+'">'
+      +'<span class="dn">'+d+'</span><span class="kc">'+(has?fmt(t.net):"–")+'</span><span class="pp">'+(has?"P "+fmt(t.p):(t.burn?"−"+fmt(t.burn):"")+"&nbsp;")+'</span>'
+      +'<span class="pbar"><i style="width:'+(has?Math.min(100,t.p/g.p*100):0)+'%"></i></span></button>';
+  }
+  let h='<section class="sum"><div><b>'+logged+'</b><span>Days logged</span></div><div><b>'+(logged?fmt(sumNet/logged):"–")+'</b><span>Avg net kcal</span></div><div><b>'+(logged?fmt(sumP/logged):"–")+'</b><span>Avg protein g</span></div><div><b>'+fmt(sumBurn)+'</b><span>Burned kcal</span></div></section>';
+  h+='<section class="card"><div class="cal">'+cells+'</div><div class="legend"><span style="--c:var(--good)">Within goal</span><span style="--c:var(--warn)">Over goal</span><span style="--c:var(--low)">Under 85%</span></div></section>';
+  h+='<section class="card"><div class="ch-h">Net calories per day<span>goal '+fmt(g.kcal)+'</span></div>'+barChart(nets,g.kcal,"var(--cal)",n)+'</section>';
+  h+='<section class="card"><div class="ch-h">Protein per day<span>goal '+g.p+' g</span></div>'+barChart(pros,g.p,"var(--pro)",n)+'</section>';
+  return h;
+}
+function render(){
+  const isDay=view==="day";
+  const keep=$("#stats").scrollTop;
+  $("#vDay").classList.toggle("on",isDay);$("#vDay").setAttribute("aria-pressed",isDay);
+  $("#vMonth").classList.toggle("on",!isDay);$("#vMonth").setAttribute("aria-pressed",!isDay);
+  $("#tChat").classList.toggle("on",chatOpen);$("#tChat").setAttribute("aria-pressed",chatOpen);
+  $("#app").classList.toggle("nochat",!chatOpen);
+  $("#chat").classList.toggle("hide",!chatOpen);
+  if(isDay){
+    $("#title").textContent=dayLabel(cur);
+    $("#nextB").disabled=cur>=todayStr();
+  }else{
+    $("#title").textContent=new Date(mc.y,mc.m,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+    const now=new Date();
+    $("#nextB").disabled=(mc.y>now.getFullYear()||(mc.y===now.getFullYear()&&mc.m>=now.getMonth()));
+  }
+  $("#stats").innerHTML=isDay?dayHTML():monthHTML();
+  $("#stats").scrollTop=keep;
+}
+
+/* chat */
+const GREETING="Namaste! Tell me what you ate or how you moved and I’ll log it.<div class=\"warn\">Try <code>2 roti, 1 katori dal, 1 glass chaas</code> or <code>30 min walking</code>. Say <code>help</code> for more.</div>";
+function pushMsg(r,h){S.chat.push({r,h});if(S.chat.length>40)S.chat.splice(0,S.chat.length-40);save();drawChat();}
+function drawChat(){
+  const box=$("#msgs");
+  box.innerHTML=S.chat.map(m=>'<div class="m '+m.r+'">'+m.h+'</div>').join("");
+  box.scrollTop=box.scrollHeight;
+}
+const CHIPS=["2 roti, 1 katori dal, sabzi","1 plate poha, 1 chai","3 idli with sambar","1 plate chicken biryani","2 boiled eggs, 1 banana","30 min walking","45 min gym","undo"];
+$("#chips").innerHTML=CHIPS.map(c=>'<button class="chip" data-act="chip" data-t="'+esc(c)+'">'+esc(c)+'</button>').join("");
+
+function autoMeal(){const h=new Date().getHours();return h<11?"Breakfast":h<16?"Lunch":h<19?"Snacks":"Dinner";}
+const HELP="<b>How to log</b><div class=\"warn\">Food: <code>2 roti</code>, <code>1 katori rice</code>, <code>200 g paneer</code>, <code>1 glass milk</code>, <code>half plate biryani</code>. Separate items with commas.</div>"
+  +"<div class=\"warn\">Meals: start with <code>lunch:</code> or <code>dinner:</code> (otherwise I use the time of day).</div>"
+  +"<div class=\"warn\">Workouts: <code>30 min running</code>, <code>5 km cycling</code>, <code>8000 steps</code>, <code>3x10 pushups</code>.</div>"
+  +"<div class=\"warn\">Not in my list? Add your own: <code>pizza 450 kcal 15p 50c 20f</code>. Wrong entry? Say <code>undo</code> or use the bin in the daily view.</div>";
+
+function handle(text){
+  const raw=text.trim();
+  if(!raw)return;
+  const low=raw.toLowerCase();
+  pushMsg("u",esc(raw));
+  if(/^(help|\?|how)$/.test(low)){pushMsg("a",HELP);return;}
+  if(/^(undo|undo last|delete last|remove last)$/.test(low)){
+    const es=getEntries(cur);
+    if(!es.length){pushMsg("a","Nothing to undo for "+esc(dayLabel(cur))+".");return;}
+    let li=0;es.forEach((e,i)=>{if(e.ts>=es[li].ts)li=i;});
+    const gone=es.splice(li,1)[0];save();render();
+    pushMsg("a","Removed <b>"+esc(gone.name)+"</b> ("+esc(gone.qty)+").");return;
+  }
+  if(/^(summary|today|total|status)$/.test(low)){
+    const t=totals(cur),g=goals();
+    pushMsg("a","<b>"+esc(dayLabel(cur))+"</b><div class=\"tot\">"+fmt(t.kcal)+" kcal eaten, −"+fmt(t.burn)+" burned = <b>"+fmt(t.net)+" net</b> of "+fmt(g.kcal)+".<br>Protein "+f1(t.p)+" of "+g.p+" g · carbs "+f1(t.c)+" g · fat "+f1(t.f)+" g.</div>");return;
+  }
+  const out=parseMessage(raw);
+  const meal=out.meal||autoMeal();
+  const hourOf={Breakfast:8,Lunch:13,Snacks:17,Dinner:20};
+  const isToday=cur===todayStr();
+  const base=isToday?Date.now():parseDs(cur).getTime();
+  const day=S.days[cur]||(S.days[cur]={entries:[]});
+  out.add.forEach((e,i)=>{
+    e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7)+i;
+    e.ts=isToday?base+i:base+((e.type==="workout"?18:hourOf[meal])*3600000)+i;
+    if(e.type==="food")e.meal=meal;
+    day.entries.push(e);
+  });
+  let h="";
+  out.add.forEach(e=>{
+    const neg=e.type==="workout";
+    h+='<div class="row"><div><b>'+esc(e.name)+'</b><small>'+esc(e.qty)+(neg?"":" · "+meal)+'</small>'
+      +(neg?"":'<div class="mac"><span style="--c:var(--pro)">P '+f1(e.p)+'</span><span style="--c:var(--carb)">C '+f1(e.c)+'</span><span style="--c:var(--fat)">F '+f1(e.f)+'</span></div>'
+      +((e.fiber||e.iron||e.ca||e.vc)?'<small>Fibre '+f1(e.fiber)+' g · Iron '+f1(e.iron)+' mg · Ca '+fmt(e.ca)+' mg · Vit C '+f1(e.vc)+' mg</small>':""))
+      +'</div><div class="num'+(neg?" neg":"")+'">'+(neg?"−":"")+fmt(e.kcal)+' kcal</div></div>';
+  });
+  out.ask.forEach(a=>{h+='<div class="warn">'+esc(a)+'</div>';});
+  if(out.unk.length)h+='<div class="warn">I couldn’t find <b>'+out.unk.map(esc).join(", ")+'</b>. Add it yourself, for example <code>'+esc(out.unk[0])+' 250 kcal 8p 30c 10f</code>, or try a simpler name.</div>';
+  if(!out.add.length&&!out.ask.length&&!out.unk.length)h="I couldn’t read that. Try <code>2 roti, 1 katori dal</code> or <code>30 min running</code>.";
+  if(out.add.length){
+    save();
+    const t=totals(cur),g=goals();
+    h+='<div class="tot">'+(isToday?"Today":esc(dayLabel(cur)))+': <b>'+fmt(t.net)+'</b> of '+fmt(g.kcal)+' kcal net · protein '+f1(t.p)+' of '+g.p+' g</div>';
+  }
+  pushMsg("a",h);
+  render();
+}
+
+/* events */
+function openSettings(){
+  $("#sWeight").value=S.settings.weight;$("#sKcal").value=S.settings.kcal;$("#sPro").value=S.settings.protein;
+  clearArmed=false;$("#clearB").textContent="Clear all data";
+  $("#ov").classList.add("on");
+}
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-act]");
+  if(!b)return;
+  const a=b.dataset.act;
+  if(a==="closeov"){if(b.id==="ov"&&ev.target!==b)return;$("#ov").classList.remove("on");return;}
+  if(a==="prev"||a==="next"){
+    const dl=a==="next"?1:-1;
+    if(view==="day"){const d=parseDs(cur);d.setDate(d.getDate()+dl);cur=ds(d);mc={y:d.getFullYear(),m:d.getMonth()};}
+    else{const d=new Date(mc.y,mc.m+dl,1);mc={y:d.getFullYear(),m:d.getMonth()};}
+    render();return;
+  }
+  if(a==="today"){const n=new Date();cur=ds(n);mc={y:n.getFullYear(),m:n.getMonth()};render();return;}
+  if(a==="vday"){view="day";render();return;}
+  if(a==="vmonth"){const d=parseDs(cur);mc={y:d.getFullYear(),m:d.getMonth()};view="month";render();return;}
+  if(a==="tchat"){chatOpen=!chatOpen;render();if(chatOpen)drawChat();return;}
+  if(a==="settings"){openSettings();return;}
+  if(a==="open"){cur=b.dataset.d;view="day";render();return;}
+  if(a==="del"){
+    const es=getEntries(cur),i=es.findIndex(e=>e.id===b.dataset.id);
+    if(i>=0){es.splice(i,1);save();render();}
+    return;
+  }
+  if(a==="chip"){
+    const t=b.dataset.t;
+    if(t==="undo"){handle("undo");return;}
+    const inp=$("#inp");inp.value=t;inp.focus();return;
+  }
+  if(a==="send"){const inp=$("#inp");const v=inp.value;inp.value="";handle(v);return;}
+  if(a==="clear"){
+    if(!clearArmed){clearArmed=true;b.textContent="Tap again to delete everything";return;}
+    S.days={};S.chat=[];save();clearArmed=false;b.textContent="Clear all data";
+    pushMsg("a",GREETING);render();$("#ov").classList.remove("on");return;
+  }
+});
+$("#inp").addEventListener("keydown",ev=>{
+  if(ev.key==="Enter"){ev.preventDefault();const v=ev.target.value;ev.target.value="";handle(v);}
+});
+[["#sWeight","weight",20,250],["#sKcal","kcal",800,6000],["#sPro","protein",10,400]].forEach(c=>{
+  $(c[0]).addEventListener("input",ev=>{
+    const v=parseFloat(ev.target.value);
+    if(!isNaN(v)&&v>=c[2]&&v<=c[3]){S.settings[c[1]]=v;save();render();}
+  });
+});
+
+if(!S.chat.length){S.chat.push({r:"a",h:GREETING});save();}
+drawChat();
+render();
+})();
+</script>
+</body>
+</html>
