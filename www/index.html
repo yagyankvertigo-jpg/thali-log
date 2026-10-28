@@ -181,6 +181,7 @@ button{font:inherit;color:inherit}
       <label class="fld"><span>Daily protein goal<small>grams</small></span><input id="sPro" type="number" inputmode="numeric" min="10" max="400"></label>
       <p class="note">Carb and fat targets are set from your calorie goal (50% and 28%). Fibre, iron, calcium and vitamin C use typical adult daily references. Values are estimates, not medical advice.</p>
       <label class="fld"><span>USDA API key<small>Optional. Free at fdc.nal.usda.gov, gives more online lookups</small></span><input id="sKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label class="fld"><span>Anthropic API key<small>Optional. Lets lookup search the whole web for any dish. Billed by Anthropic per lookup. Stays on this phone.</small></span><input id="sAI" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <div class="fld"><span id="savedN">Saved foods: 0<small>Values found online, kept for next time</small></span><button class="btn" id="forgetB" data-act="forget">Forget</button></div>
       <button class="btn danger" id="clearB" data-act="clear">Clear all data</button>
     </div>
@@ -191,7 +192,7 @@ button{font:inherit;color:inherit}
 (function(){
 "use strict";
 const KEY="thali-log-v1";
-const S={settings:{weight:70,kcal:2000,protein:90,usdaKey:""},days:{},chat:[],custom:[]};
+const S={settings:{weight:70,kcal:2000,protein:90,usdaKey:"",aiKey:""},days:{},chat:[],custom:[]};
 try{
   const raw=localStorage.getItem(KEY);
   if(raw){const o=JSON.parse(raw);
@@ -579,6 +580,11 @@ function processPiece(p,out){
     i++;
   }
   if(found.length>1)out.multi.push(found.map(x=>x.item.n).join(" + "));
+  const leftover=work.filter(w=>w&&!/^\d/.test(w));
+  if(found.length===1&&GENERIC.has(found[0].item.n)&&leftover.length){
+    const nm=s.split(" ").filter(w=>w&&!STOP.has(w)&&!/^\d/.test(w)).join(" ");
+    out.partial.push({name:nm,qty,unit,mult,addIndex:out.add.length});
+  }
   found.forEach((fm,idx)=>addFood(out,fm.item,idx===0?qty:1,idx===0?unit:null,idx===0?mult:1));
 }
 function addFood(out,f,qty,unit,mult){
@@ -605,7 +611,7 @@ function parseMessage(text){
   let meal=null;
   const mm=/^\s*(breakfast|brunch|lunch|dinner|supper|snacks?|evening snack|tea time)\b\s*[:\-–]?\s*/i.exec(t)||/\bfor\s+(breakfast|brunch|lunch|dinner|supper|snacks?)\b/i.exec(t);
   if(mm){meal=mealName(mm[1]);t=t.replace(mm[0]," ");}
-  const out={meal,add:[],unk:[],unkq:[],ask:[],multi:[]};
+  const out={meal,add:[],unk:[],unkq:[],partial:[],ask:[],multi:[]};
   t.split(/[,;\n+&]|\band\b|\baur\b|\bplus\b/i).forEach(seg=>{
     const s=norm(seg).replace(/^(?:(?:i|had|ate|eaten|eat|just|also|then|log|logged|add|today|me|my|for|did|done|went)\s+)+/,"");
     if(!s)return;
@@ -771,7 +777,7 @@ function autoMeal(){const h=new Date().getHours();return h<11?"Breakfast":h<16?"
 const HELP="<b>How to log</b><div class=\"warn\">Food: <code>2 roti</code>, <code>1 katori rice</code>, <code>200 g paneer</code>, <code>1 glass milk</code>, <code>half plate biryani</code>. Separate items with commas.</div>"
   +"<div class=\"warn\">Meals: start with <code>lunch:</code> or <code>dinner:</code> (otherwise I use the time of day).</div>"
   +"<div class=\"warn\">Workouts: <code>30 min running</code>, <code>5 km cycling</code>, <code>8000 steps</code>, <code>3x10 pushups</code>.</div>"
-  +"<div class=\"warn\">Food I don’t know? With internet I look it up and save it. Check any food yourself with <code>lookup paneer</code>. Or add your own: <code>pizza 450 kcal 15p 50c 20f</code>.</div>"
+  +"<div class=\"warn\">Food I don’t know? With internet I look it up and save it. Check any food yourself with <code>lookup paneer</code>. With an Anthropic API key in settings, lookup searches the whole web. Or add your own: <code>pizza 450 kcal 15p 50c 20f</code>.</div>"
   +"<div class=\"warn\">Wrong entry? Say <code>undo</code> or use the bin in the daily view.</div>";
 const hourOf={Breakfast:8,Lunch:13,Snacks:17,Dinner:20};
 function commit(entries,meal){
@@ -804,14 +810,31 @@ function totalHTML(){
 const manualHint=n=>'Add it yourself, for example <code>'+esc(n)+' 250 kcal 8p 30c 10f</code>.';
 
 /* online lookup: USDA FoodData Central (generic foods) and Open Food Facts (packaged foods), values per 100 g */
-let pending=null;
-async function fetchJSON(url){
-  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),9000);
-  try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok)throw new Error("HTTP "+r.status);return await r.json();}
-  finally{clearTimeout(t);}
+let pending=null;const partialMap={};
+async function fetchJSON(url,opts,ms){
+  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||9000);
+  try{
+    const r=await fetch(url,Object.assign({signal:ctl.signal},opts||{}));
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return await r.json();
+  }finally{clearTimeout(t);}
 }
 const num=v=>{const n=parseFloat(v);return isFinite(n)?n:null;};
 const firstNum=(...a)=>{for(const x of a){if(x!=null&&isFinite(x))return Number(x);}return null;};
+/* Indian ingredient names to English, so USDA can find them */
+const EN={suran:"yam",jimikand:"yam",arbi:"taro",arvi:"taro",lauki:"bottle gourd",doodhi:"bottle gourd",ghiya:"bottle gourd",tinda:"round gourd",karela:"bitter melon",bhindi:"okra",baingan:"eggplant",brinjal:"eggplant",gobi:"cauliflower",phool:"cauliflower",patta:"cabbage",matar:"peas",palak:"spinach",methi:"fenugreek leaves",sarson:"mustard greens",kaddu:"pumpkin",tori:"ridge gourd",turai:"ridge gourd",parwal:"pointed gourd",kundru:"ivy gourd",shalgam:"turnip",mooli:"radish",gajar:"carrot",chukandar:"beetroot",shimla:"bell pepper",mirch:"pepper",sem:"broad beans",lobia:"cowpeas",moong:"mung beans",urad:"black gram",chana:"chickpeas",masoor:"lentils",toor:"pigeon peas",arhar:"pigeon peas",rajma:"kidney beans",bajra:"pearl millet",jowar:"sorghum",ragi:"finger millet",besan:"chickpea flour",sooji:"semolina",rava:"semolina",atta:"whole wheat flour",maida:"refined wheat flour",sabudana:"tapioca pearls",nariyal:"coconut",kela:"banana",aloo:"potato",pyaz:"onion",tamatar:"tomato",lehsun:"garlic",adrak:"ginger",dhania:"coriander leaves",pudina:"mint",makhana:"lotus seeds",singhara:"water chestnut",kathal:"jackfruit",mushroom:"mushrooms",soya:"soybeans"};
+const DISHW=new Set(["sabzi","sabji","subzi","curry","masala","fry","bhaji","bhujia","tadka","gravy","dry","wali","ki","ka","ke","bhurta","bharta"]);
+function queryVariants(name){
+  const w=norm(name).split(" ").filter(Boolean);
+  const tr=w.map(x=>EN[x]||x);
+  const out=[{q:w.join(" "),tag:""}];
+  const t=tr.join(" ");
+  if(t!==out[0].q)out.push({q:t,tag:""});
+  const core=tr.filter(x=>!DISHW.has(x));
+  const c=core.join(" ");
+  if(c&&!out.some(o=>o.q===c))out.push({q:c,tag:" (ingredient only, raw)"});
+  return out.slice(0,3);
+}
 async function searchUSDA(q){
   const key=(S.settings.usdaKey||"").trim()||"DEMO_KEY";
   const j=await fetchJSON("https://api.nal.usda.gov/fdc/v1/foods/search?api_key="+encodeURIComponent(key)+"&pageSize=8&dataType=Foundation,SR%20Legacy&query="+encodeURIComponent(q));
@@ -824,6 +847,34 @@ async function searchUSDA(q){
     out.push({label:f.description,src:"USDA",serving:null,v:[kcal,m[1003]||0,m[1005]||0,m[1004]||0,m[1079]||0,m[1089]||0,m[1087]||0,m[1162]||0]});
   });
   return out;
+}
+/* AI lookup: Claude with web search, needs the person's own Anthropic API key */
+async function searchAI(name){
+  const key=(S.settings.aiKey||"").trim();
+  if(!key)return [];
+  const prompt="You are a nutrition database for Indian home cooking. Find reliable nutrition values per 100 g (cooked, ready to eat) for: \""+name+"\". Use web search if useful (IFCT, NIN, USDA or reputable nutrition sites). If it is a prepared dish, assume a typical home-style recipe with the usual oil and spices. Reply with ONLY a JSON object, no markdown and no extra text, in exactly this shape: {\"name\":\"short display name\",\"per100g\":{\"kcal\":0,\"protein_g\":0,\"carbs_g\":0,\"fat_g\":0,\"fiber_g\":0,\"iron_mg\":0,\"calcium_mg\":0,\"vitamin_c_mg\":0},\"typical_serving_g\":0,\"serving_desc\":\"e.g. 1 katori\",\"note\":\"one short sentence on what this is and how reliable the numbers are\"}";
+  let lastErr=null;
+  for(const model of ["claude-sonnet-5-5","claude-sonnet-4-6"]){
+    try{
+      const j=await fetchJSON("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model,max_tokens:1500,tools:[{type:"web_search_20250305",name:"web_search",max_uses:3}],messages:[{role:"user",content:prompt}]})},45000);
+      const text=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
+      const i=text.indexOf("{"),k=text.lastIndexOf("}");
+      if(i<0||k<=i)throw new Error("No data in reply");
+      const o=JSON.parse(text.slice(i,k+1));
+      const n=o.per100g||{};
+      const v=[num(n.kcal),num(n.protein_g)||0,num(n.carbs_g)||0,num(n.fat_g)||0,num(n.fiber_g)||0,num(n.iron_mg)||0,num(n.calcium_mg)||0,num(n.vitamin_c_mg)||0];
+      if(v[0]==null)throw new Error("No calories in reply");
+      let note=String(o.note||"");
+      const calc=4*v[1]+4*v[2]+9*v[3];
+      if(v[0]>0&&Math.abs(calc-v[0])/v[0]>0.35)note+=" Check: protein, carbs and fat don’t add up to the calories.";
+      return [{label:"AI estimate: "+String(o.name||name),src:"Claude with web search",serving:num(o.typical_serving_g),servingDesc:String(o.serving_desc||""),note:note.trim(),v}];
+    }catch(e){
+      lastErr=e;
+      if(/HTTP (401|403|429|529)/.test(String(e.message)))throw e;
+    }
+  }
+  throw lastErr||new Error("AI lookup failed");
 }
 async function searchOFF(q){
   const j=await fetchJSON("https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_quantity,countries_tags&search_terms="+encodeURIComponent(q));
@@ -841,37 +892,52 @@ async function nextLookup(){
   if(!pending||!pending.queue.length){pending=null;return;}
   const it=pending.queue.shift();
   pending.cur=it;pending.cands=[];
-  pushMsg("a","Looking up <b>"+esc(it.name)+"</b> online…");
-  let res=[],failed=false;
-  try{
-    const r=await Promise.allSettled([searchUSDA(it.name),searchOFF(it.name)]);
-    if(r[0].status==="fulfilled")res=res.concat(r[0].value.slice(0,3));
-    if(r[1].status==="fulfilled")res=res.concat(r[1].value.slice(0,3));
-    failed=r.every(x=>x.status==="rejected");
-  }catch(e){failed=true;}
-  res=res.filter(c=>c.v[0]>=0&&c.v[0]<=950).slice(0,5);
+  const hasAI=!!(S.settings.aiKey||"").trim();
+  pushMsg("a","Looking up <b>"+esc(it.name)+"</b> online"+(hasAI?" and searching the web":"")+"…");
+  const vars=queryVariants(it.name);
+  const jobs=[searchAI(it.name)].concat(vars.map(v=>searchUSDA(v.q)),[searchOFF(it.name)]);
+  let r=[];
+  try{r=await Promise.allSettled(jobs);}catch(e){r=[];}
   if(!pending)return;
+  const ai=r[0]&&r[0].status==="fulfilled"?r[0].value:[];
+  let aiErr="";
+  if(hasAI&&r[0]&&r[0].status==="rejected"){
+    const m=String(r[0].reason&&r[0].reason.message||"");
+    aiErr=/HTTP 401|HTTP 403/.test(m)?"Your Anthropic API key was rejected.":/HTTP 429/.test(m)?"The AI service is busy or over its limit.":"AI lookup didn’t work this time.";
+  }
+  const usda=[],seen={};
+  vars.forEach((v,i)=>{
+    const x=r[1+i];
+    if(x&&x.status==="fulfilled")x.value.slice(0,3).forEach(c=>{if(!seen[c.label]){seen[c.label]=1;c.label+=v.tag;usda.push(c);}});
+  });
+  const offR=r[1+vars.length];
+  const off=offR&&offR.status==="fulfilled"?offR.value:[];
+  const failed=r.length===0||r.every(x=>x.status==="rejected");
+  const res=ai.concat(usda.slice(0,3),off.slice(0,2)).filter(c=>c.v[0]>=0&&c.v[0]<=950).slice(0,6);
   if(!res.length){
-    pushMsg("a",(failed?"I couldn’t reach the food databases. Check your internet and try <code>lookup "+esc(it.name)+"</code> again. ":"Nothing found online for <b>"+esc(it.name)+"</b>. ")+manualHint(it.name));
+    pushMsg("a",(failed?"I couldn’t reach the food databases. Check your internet and try <code>lookup "+esc(it.name)+"</code> again. ":"Nothing found online for <b>"+esc(it.name)+"</b>. ")+(aiErr?esc(aiErr)+" ":"")+(hasAI?"":"Adding an Anthropic API key in settings lets me search the whole web. ")+manualHint(it.name));
     nextLookup();return;
   }
   pending.cands=res;
   let h="Which one is closest to <b>"+esc(it.name)+"</b>? Values are per 100 g, and I’ll save your pick for next time.";
-  res.forEach((c,i)=>{h+='<button class="cand" data-act="pick" data-i="'+i+'"><b>'+esc(c.label)+'</b><small>'+fmt(c.v[0])+' kcal · P '+f1(c.v[1])+' · C '+f1(c.v[2])+' · F '+f1(c.v[3])+' · '+esc(c.src)+'</small></button>';});
+  res.forEach((c,i)=>{h+='<button class="cand" data-act="pick" data-i="'+i+'"><b>'+esc(c.label)+'</b><small>'+fmt(c.v[0])+' kcal · P '+f1(c.v[1])+' · C '+f1(c.v[2])+' · F '+f1(c.v[3])+' · '+esc(c.src)+(c.serving>0?' · serving ~'+Math.round(c.serving)+' g':'')+'</small>'+(c.note?'<small>'+esc(c.note)+'</small>':'')+'</button>';});
   h+='<button class="cand" data-act="skip"><b>None of these</b></button>';
+  if(aiErr)h+='<div class="warn">'+esc(aiErr)+'</div>';
+  else if(!hasAI)h+='<div class="warn">Not the right dish? Add an Anthropic API key in settings and I’ll search the whole web for it.</div>';
   pushMsg("a",h);
 }
 function pickCand(i){
   if(!pending||!pending.cands[i]){pushMsg("a","That choice has expired. Type the food again.");return;}
   const c=pending.cands[i],it=pending.cur,meal=pending.meal;
-  const hasServing=c.serving>0&&c.serving<1000;
-  const d=it.unit?100:(hasServing?c.serving:100);
+  const hasServing=c.serving>0&&c.serving<1500;
+  const d=hasServing?c.serving:100;
   const nm=it.name.charAt(0).toUpperCase()+it.name.slice(1);
   S.custom=(S.custom||[]).filter(x=>norm(x.al)!==norm(it.name));
   S.custom.push({n:nm,al:it.name,v:c.v.map(x=>Math.round(x*100)/100),d,src:c.src});
   rebuildCustom();
   let h="Saved <b>"+esc(nm)+"</b> ("+esc(c.src)+") for next time.";
   if(it.log){
+    if(it.replaceId){Object.keys(S.days).forEach(k=>{const es=S.days[k].entries||[];const i=es.findIndex(e=>e.id===it.replaceId);if(i>=0)es.splice(i,1);});}
     const out={add:[]};
     addFood(out,CUSTOM[CUSTOM.length-1],it.qty,it.unit,it.mult);
     commit(out.add,meal);
@@ -916,6 +982,15 @@ function handle(text){
     if(offline)h+='<div class="warn">I don’t have <b>'+out.unk.map(esc).join(", ")+'</b> yet, and you’re offline. When internet is on, type <code>lookup '+esc(out.unk[0])+'</code>. Or '+manualHint(out.unk[0]).replace(/^Add/,"add")+'</div>';
     else h+='<div class="warn">I don’t have <b>'+out.unk.map(esc).join(", ")+'</b> in my list yet. Checking online…</div>';
   }
+  if(!offline){
+    out.partial.forEach(p=>{
+      const e=out.add[p.addIndex];if(!e)return;
+      p.replaceId=e.id;
+      const k="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+      partialMap[k]=p;
+      h+='<div class="warn">I don’t know <b>'+esc(p.name)+'</b>, so I used the generic <b>'+esc(e.name)+'</b>.</div><button class="cand" data-act="lookupq" data-k="'+k+'"><b>Look up exact values for '+esc(p.name)+'</b><small>Searches online, then replaces this entry and saves it</small></button>';
+    });
+  }
   if(out.multi.length)h+='<div class="warn">I read <b>'+out.multi.map(esc).join("; ")+'</b> as separate foods. If that’s wrong, say <code>undo</code> and type it as one item, or add it yourself like <code>name 150 kcal 8p 20c 3f</code>.</div>';
   if(!out.add.length&&!out.ask.length&&!out.unk.length)h="I couldn’t read that. Try <code>2 roti, 1 katori dal</code> or <code>30 min running</code>.";
   if(out.add.length)h+=totalHTML();
@@ -929,7 +1004,7 @@ function handle(text){
 
 /* events */
 function openSettings(){
-  $("#sWeight").value=S.settings.weight;$("#sKcal").value=S.settings.kcal;$("#sPro").value=S.settings.protein;$("#sKey").value=S.settings.usdaKey||"";
+  $("#sWeight").value=S.settings.weight;$("#sKcal").value=S.settings.kcal;$("#sPro").value=S.settings.protein;$("#sKey").value=S.settings.usdaKey||"";$("#sAI").value=S.settings.aiKey||"";
   clearArmed=false;forgetArmed=false;$("#clearB").textContent="Clear all data";$("#forgetB").textContent="Forget";
   $("#savedN").firstChild.textContent="Saved foods: "+(S.custom||[]).length;
   $("#ov").classList.add("on");
@@ -962,6 +1037,14 @@ document.addEventListener("click",ev=>{
     const inp=$("#inp");inp.value=t;inp.focus();return;
   }
   if(a==="pick"){pickCand(+b.dataset.i);return;}
+  if(a==="lookupq"){
+    const p=partialMap[b.dataset.k];
+    if(!p){pushMsg("a","That button has expired. Type <code>lookup "+esc(b.textContent.replace("Look up exact values for ","").split("Searches")[0])+"</code> instead.");return;}
+    let meal=autoMeal();
+    Object.keys(S.days).forEach(k=>{const e=(S.days[k].entries||[]).find(x=>x.id===p.replaceId);if(e&&e.meal)meal=e.meal;});
+    pending={queue:[Object.assign({log:true},p)],meal,cur:null,cands:[]};
+    nextLookup();return;
+  }
   if(a==="skip"){if(pending&&pending.cur){const n=pending.cur.name;pending.cands=[];pushMsg("a","Skipped. "+manualHint(n));nextLookup();}return;}
   if(a==="forget"){
     if(!(S.custom||[]).length){b.textContent="Nothing saved";return;}
@@ -976,6 +1059,7 @@ document.addEventListener("click",ev=>{
   }
 });
 $("#sKey").addEventListener("input",ev=>{S.settings.usdaKey=ev.target.value.trim();save();});
+$("#sAI").addEventListener("input",ev=>{S.settings.aiKey=ev.target.value.trim();save();});
 $("#inp").addEventListener("keydown",ev=>{
   if(ev.key==="Enter"){ev.preventDefault();const v=ev.target.value;ev.target.value="";handle(v);}
 });
