@@ -1,5 +1,10 @@
 {
   "appId": "com.thalilog.app",
   "appName": "Thali Log",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
