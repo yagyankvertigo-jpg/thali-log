@@ -119,6 +119,9 @@ button{font:inherit;color:inherit}
 .m .tot{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink2)}
 .m .warn{margin-top:6px;font-size:13px;color:var(--ink2)}
 .m code{font:500 12.5px "Figtree",sans-serif;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 5px}
+.cand{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 9px;margin-top:6px;cursor:pointer}
+.cand b{font-weight:500;font-size:13.5px}
+.cand small{display:block;color:var(--ink2);font-size:12px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--surface);padding:5px 11px;border-radius:99px;font:500 12.5px "Figtree",sans-serif;cursor:pointer;white-space:nowrap}
@@ -130,7 +133,7 @@ button{font:inherit;color:inherit}
 
 .ov{position:absolute;inset:0;background:rgba(10,15,25,.5);display:none;align-items:flex-end;justify-content:center;z-index:5}
 .ov.on{display:flex}
-.sheet{background:var(--surface);width:100%;border-radius:18px 18px 0 0;padding:16px 16px 20px;display:grid;gap:12px}
+.sheet{max-height:92%;overflow-y:auto;background:var(--surface);width:100%;border-radius:18px 18px 0 0;padding:16px 16px 20px;display:grid;gap:12px}
 .sheet h2{font:700 18px "Bricolage Grotesque","Figtree",sans-serif;display:flex;justify-content:space-between;align-items:center}
 .fld{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;font-size:14px}
 .fld small{display:block;color:var(--ink2);font-size:12px}
@@ -177,6 +180,8 @@ button{font:inherit;color:inherit}
       <label class="fld"><span>Daily calorie goal<small>kcal, after subtracting workouts</small></span><input id="sKcal" type="number" inputmode="numeric" min="800" max="6000"></label>
       <label class="fld"><span>Daily protein goal<small>grams</small></span><input id="sPro" type="number" inputmode="numeric" min="10" max="400"></label>
       <p class="note">Carb and fat targets are set from your calorie goal (50% and 28%). Fibre, iron, calcium and vitamin C use typical adult daily references. Values are estimates, not medical advice.</p>
+      <label class="fld"><span>USDA API key<small>Optional. Free at fdc.nal.usda.gov, gives more online lookups</small></span><input id="sKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <div class="fld"><span id="savedN">Saved foods: 0<small>Values found online, kept for next time</small></span><button class="btn" id="forgetB" data-act="forget">Forget</button></div>
       <button class="btn danger" id="clearB" data-act="clear">Clear all data</button>
     </div>
   </div>
@@ -186,7 +191,7 @@ button{font:inherit;color:inherit}
 (function(){
 "use strict";
 const KEY="thali-log-v1";
-const S={settings:{weight:70,kcal:2000,protein:90},days:{},chat:[]};
+const S={settings:{weight:70,kcal:2000,protein:90,usdaKey:""},days:{},chat:[],custom:[]};
 try{
   const raw=localStorage.getItem(KEY);
   if(raw){const o=JSON.parse(raw);
@@ -194,6 +199,7 @@ try{
       Object.assign(S.settings,o.settings||{});
       S.days=(o.days&&typeof o.days==="object")?o.days:{};
       S.chat=Array.isArray(o.chat)?o.chat:[];
+      S.custom=Array.isArray(o.custom)?o.custom:[];
     }}
 }catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
@@ -290,7 +296,7 @@ const RAW=[
 ["Pani puri","pani puri|golgappa|puchka|gol gappa",180,3,28,6,2,1,15,4,25,"c"],
 ["Bhel / chaat","bhel|bhel puri|sev puri|chaat",180,4,30,5,2.5,1.2,30,5,150,""],
 ["Momos","momo|dumpling",160,8,22,4.5,1.2,1,20,1,25,"c"],
-["Dal (tadka)","dal|daal|dal tadka|dal fry|toor dal|moong dal|masoor dal|arhar dal|yellow dal|dal curry",90,5.5,12,2.5,2.5,1.5,25,1,150,"k"],
+["Dal (tadka)","dal|daal|dal tadka|dal fry|toor dal|moong dal|masoor dal|arhar dal|yellow dal|dal curry|chana dal|urad dal|urad|mixed dal|panchmel dal|lauki dal|palak dal|dal palak|tomato dal|dal tamatar|sabut moong",90,5.5,12,2.5,2.5,1.5,25,1,150,"k"],
 ["Dal makhani","dal makhani|black dal|kali dal",140,5.5,12,8,4,2,60,1,150,"k"],
 ["Rajma","rajma|rajma masala|kidney beans",125,6.5,15,4,5,2,40,2,150,"k"],
 ["Chole (chana masala)","chole|chana masala|chickpea|kabuli chana|chana|chola",150,7,20,5,6,2.5,50,3,150,"k"],
@@ -387,6 +393,13 @@ const FOODS=RAW.map(r=>{
   o.at=r[1].split("|").map(a=>toks(norm(a)));
   return o;
 });
+
+let CUSTOM=[];
+function rebuildCustom(){
+  CUSTOM=(S.custom||[]).map(c=>({n:c.n,v:c.v,d:c.d||100,c:false,k:false,l:false,src:c.src,at:[toks(norm(c.al))]}));
+}
+rebuildCustom();
+const allFoods=()=>CUSTOM.concat(FOODS);
 
 /* Exercises: MET value, optional typical speed km/h (for distance), reps = kcal per rep at 70 kg */
 const EXRAW=[
@@ -543,13 +556,29 @@ function processPiece(p,out){
   const work=toks(s.replace(/\s+/g," ").trim());
   const found=[];
   for(let r=0;r<3;r++){
-    const mm=findIn(FOODS,work);
+    const mm=findIn(allFoods(),work);
     if(!mm)break;
     found.push(mm);
     for(let j=0;j<mm.n;j++)work[mm.start+j]="";
   }
-  if(!found.length){out.unk.push(p.replace(/\d+(?:\.\d+)?/g," ").replace(/\s+/g," ").trim()||p);return;}
+  if(!found.length){
+    const nm=s.split(" ").filter(w=>w&&!STOP.has(w)).join(" ")||p;
+    out.unk.push(nm);out.unkq.push({name:nm,qty,unit,mult});return;
+  }
   found.sort((a,b)=>a.start-b.start);
+  /* A generic dish word (dal, sabzi) next to another food word is usually one dish, e.g. “chana dal”, “lauki sabzi”.
+     Keep the generic dish, unless the neighbour is a staple like rice or roti (“rice dal” stays two items). */
+  const GENERIC=new Set(["Dal (tadka)","Mixed veg sabzi"]);
+  const STAPLE=new Set(["Rice (cooked)","Brown rice","Roti / chapati","Paratha (plain)","Naan","Puri","Bread slice (white)","Brown bread","Pav (bun)","Khichdi","Bhatura","Thepla"]);
+  for(let i=0;i<found.length-1;){
+    const a=found[i],b=found[i+1];
+    if(a.start+a.n===b.start&&GENERIC.has(a.item.n)!==GENERIC.has(b.item.n)){
+      const other=GENERIC.has(a.item.n)?b:a;
+      if(!STAPLE.has(other.item.n)){found.splice(found.indexOf(other),1);continue;}
+    }
+    i++;
+  }
+  if(found.length>1)out.multi.push(found.map(x=>x.item.n).join(" + "));
   found.forEach((fm,idx)=>addFood(out,fm.item,idx===0?qty:1,idx===0?unit:null,idx===0?mult:1));
 }
 function addFood(out,f,qty,unit,mult){
@@ -576,7 +605,7 @@ function parseMessage(text){
   let meal=null;
   const mm=/^\s*(breakfast|brunch|lunch|dinner|supper|snacks?|evening snack|tea time)\b\s*[:\-–]?\s*/i.exec(t)||/\bfor\s+(breakfast|brunch|lunch|dinner|supper|snacks?)\b/i.exec(t);
   if(mm){meal=mealName(mm[1]);t=t.replace(mm[0]," ");}
-  const out={meal,add:[],unk:[],ask:[]};
+  const out={meal,add:[],unk:[],unkq:[],ask:[],multi:[]};
   t.split(/[,;\n+&]|\band\b|\baur\b|\bplus\b/i).forEach(seg=>{
     const s=norm(seg).replace(/^(?:(?:i|had|ate|eaten|eat|just|also|then|log|logged|add|today|me|my|for|did|done|went)\s+)+/,"");
     if(!s)return;
@@ -610,7 +639,7 @@ const ICONS={
 const ic=n=>'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+ICONS[n]+'</svg>';
 document.querySelectorAll("[data-ic]").forEach(e=>{e.innerHTML=ic(e.dataset.ic);});
 
-let view="day",cur=todayStr(),mc={y:new Date().getFullYear(),m:new Date().getMonth()},chatOpen=true,clearArmed=false;
+let view="day",cur=todayStr(),mc={y:new Date().getFullYear(),m:new Date().getMonth()},chatOpen=true,clearArmed=false,forgetArmed=false;
 
 const getEntries=d=>(S.days[d]&&S.days[d].entries)||[];
 function totals(d){
@@ -742,7 +771,117 @@ function autoMeal(){const h=new Date().getHours();return h<11?"Breakfast":h<16?"
 const HELP="<b>How to log</b><div class=\"warn\">Food: <code>2 roti</code>, <code>1 katori rice</code>, <code>200 g paneer</code>, <code>1 glass milk</code>, <code>half plate biryani</code>. Separate items with commas.</div>"
   +"<div class=\"warn\">Meals: start with <code>lunch:</code> or <code>dinner:</code> (otherwise I use the time of day).</div>"
   +"<div class=\"warn\">Workouts: <code>30 min running</code>, <code>5 km cycling</code>, <code>8000 steps</code>, <code>3x10 pushups</code>.</div>"
-  +"<div class=\"warn\">Not in my list? Add your own: <code>pizza 450 kcal 15p 50c 20f</code>. Wrong entry? Say <code>undo</code> or use the bin in the daily view.</div>";
+  +"<div class=\"warn\">Food I don’t know? With internet I look it up and save it. Check any food yourself with <code>lookup paneer</code>. Or add your own: <code>pizza 450 kcal 15p 50c 20f</code>.</div>"
+  +"<div class=\"warn\">Wrong entry? Say <code>undo</code> or use the bin in the daily view.</div>";
+const hourOf={Breakfast:8,Lunch:13,Snacks:17,Dinner:20};
+function commit(entries,meal){
+  const isToday=cur===todayStr();
+  const base=isToday?Date.now():parseDs(cur).getTime();
+  const day=S.days[cur]||(S.days[cur]={entries:[]});
+  entries.forEach((e,i)=>{
+    e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7)+i;
+    e.ts=isToday?base+i:base+((e.type==="workout"?18:hourOf[meal])*3600000)+i;
+    if(e.type==="food")e.meal=meal;
+    day.entries.push(e);
+  });
+  save();
+}
+function rowsHTML(entries,meal){
+  let h="";
+  entries.forEach(e=>{
+    const neg=e.type==="workout";
+    h+='<div class="row"><div><b>'+esc(e.name)+'</b><small>'+esc(e.qty)+(neg?"":" · "+meal)+'</small>'
+      +(neg?"":'<div class="mac"><span style="--c:var(--pro)">P '+f1(e.p)+'</span><span style="--c:var(--carb)">C '+f1(e.c)+'</span><span style="--c:var(--fat)">F '+f1(e.f)+'</span></div>'
+      +((e.fiber||e.iron||e.ca||e.vc)?'<small>Fibre '+f1(e.fiber)+' g · Iron '+f1(e.iron)+' mg · Ca '+fmt(e.ca)+' mg · Vit C '+f1(e.vc)+' mg</small>':""))
+      +'</div><div class="num'+(neg?" neg":"")+'">'+(neg?"−":"")+fmt(e.kcal)+' kcal</div></div>';
+  });
+  return h;
+}
+function totalHTML(){
+  const t=totals(cur),g=goals();
+  return '<div class="tot">'+(cur===todayStr()?"Today":esc(dayLabel(cur)))+': <b>'+fmt(t.net)+'</b> of '+fmt(g.kcal)+' kcal net · protein '+f1(t.p)+' of '+g.p+' g</div>';
+}
+const manualHint=n=>'Add it yourself, for example <code>'+esc(n)+' 250 kcal 8p 30c 10f</code>.';
+
+/* online lookup: USDA FoodData Central (generic foods) and Open Food Facts (packaged foods), values per 100 g */
+let pending=null;
+async function fetchJSON(url){
+  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),9000);
+  try{const r=await fetch(url,{signal:ctl.signal});if(!r.ok)throw new Error("HTTP "+r.status);return await r.json();}
+  finally{clearTimeout(t);}
+}
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:null;};
+const firstNum=(...a)=>{for(const x of a){if(x!=null&&isFinite(x))return Number(x);}return null;};
+async function searchUSDA(q){
+  const key=(S.settings.usdaKey||"").trim()||"DEMO_KEY";
+  const j=await fetchJSON("https://api.nal.usda.gov/fdc/v1/foods/search?api_key="+encodeURIComponent(key)+"&pageSize=8&dataType=Foundation,SR%20Legacy&query="+encodeURIComponent(q));
+  const out=[];
+  (j.foods||[]).forEach(f=>{
+    const m={};
+    (f.foodNutrients||[]).forEach(n=>{m[n.nutrientId]=n.value;if(n.nutrientNumber)m["n"+n.nutrientNumber]=n.value;});
+    const kcal=firstNum(m[1008],m.n208,m[2047],m[2048]);
+    if(kcal==null)return;
+    out.push({label:f.description,src:"USDA",serving:null,v:[kcal,m[1003]||0,m[1005]||0,m[1004]||0,m[1079]||0,m[1089]||0,m[1087]||0,m[1162]||0]});
+  });
+  return out;
+}
+async function searchOFF(q){
+  const j=await fetchJSON("https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,serving_quantity,countries_tags&search_terms="+encodeURIComponent(q));
+  const out=[];
+  (j.products||[]).forEach(p=>{
+    const n=p.nutriments||{},kcal=num(n["energy-kcal_100g"]);
+    if(kcal==null||!p.product_name)return;
+    out.push({label:p.product_name+(p.brands?" ("+String(p.brands).split(",")[0]+")":""),src:"Open Food Facts",serving:num(p.serving_quantity),india:(p.countries_tags||[]).indexOf("en:india")>=0,
+      v:[kcal,num(n.proteins_100g)||0,num(n.carbohydrates_100g)||0,num(n.fat_100g)||0,num(n.fiber_100g)||0,(num(n.iron_100g)||0)*1000,(num(n.calcium_100g)||0)*1000,(num(n["vitamin-c_100g"])||0)*1000]});
+  });
+  out.sort((a,b)=>(b.india?1:0)-(a.india?1:0));
+  return out;
+}
+async function nextLookup(){
+  if(!pending||!pending.queue.length){pending=null;return;}
+  const it=pending.queue.shift();
+  pending.cur=it;pending.cands=[];
+  pushMsg("a","Looking up <b>"+esc(it.name)+"</b> online…");
+  let res=[],failed=false;
+  try{
+    const r=await Promise.allSettled([searchUSDA(it.name),searchOFF(it.name)]);
+    if(r[0].status==="fulfilled")res=res.concat(r[0].value.slice(0,3));
+    if(r[1].status==="fulfilled")res=res.concat(r[1].value.slice(0,3));
+    failed=r.every(x=>x.status==="rejected");
+  }catch(e){failed=true;}
+  res=res.filter(c=>c.v[0]>=0&&c.v[0]<=950).slice(0,5);
+  if(!pending)return;
+  if(!res.length){
+    pushMsg("a",(failed?"I couldn’t reach the food databases. Check your internet and try <code>lookup "+esc(it.name)+"</code> again. ":"Nothing found online for <b>"+esc(it.name)+"</b>. ")+manualHint(it.name));
+    nextLookup();return;
+  }
+  pending.cands=res;
+  let h="Which one is closest to <b>"+esc(it.name)+"</b>? Values are per 100 g, and I’ll save your pick for next time.";
+  res.forEach((c,i)=>{h+='<button class="cand" data-act="pick" data-i="'+i+'"><b>'+esc(c.label)+'</b><small>'+fmt(c.v[0])+' kcal · P '+f1(c.v[1])+' · C '+f1(c.v[2])+' · F '+f1(c.v[3])+' · '+esc(c.src)+'</small></button>';});
+  h+='<button class="cand" data-act="skip"><b>None of these</b></button>';
+  pushMsg("a",h);
+}
+function pickCand(i){
+  if(!pending||!pending.cands[i]){pushMsg("a","That choice has expired. Type the food again.");return;}
+  const c=pending.cands[i],it=pending.cur,meal=pending.meal;
+  const hasServing=c.serving>0&&c.serving<1000;
+  const d=it.unit?100:(hasServing?c.serving:100);
+  const nm=it.name.charAt(0).toUpperCase()+it.name.slice(1);
+  S.custom=(S.custom||[]).filter(x=>norm(x.al)!==norm(it.name));
+  S.custom.push({n:nm,al:it.name,v:c.v.map(x=>Math.round(x*100)/100),d,src:c.src});
+  rebuildCustom();
+  let h="Saved <b>"+esc(nm)+"</b> ("+esc(c.src)+") for next time.";
+  if(it.log){
+    const out={add:[]};
+    addFood(out,CUSTOM[CUSTOM.length-1],it.qty,it.unit,it.mult);
+    commit(out.add,meal);
+    h+=rowsHTML(out.add,meal);
+    if(!it.unit&&!hasServing)h+='<div class="warn">I assumed 100 g per serving. For exact amounts say, for example, <code>150 g '+esc(it.name)+'</code>.</div>';
+    h+=totalHTML();
+  }
+  save();pending.cands=[];
+  pushMsg("a",h);render();nextLookup();
+}
 
 function handle(text){
   const raw=text.trim();
@@ -761,42 +900,38 @@ function handle(text){
     const t=totals(cur),g=goals();
     pushMsg("a","<b>"+esc(dayLabel(cur))+"</b><div class=\"tot\">"+fmt(t.kcal)+" kcal eaten, −"+fmt(t.burn)+" burned = <b>"+fmt(t.net)+" net</b> of "+fmt(g.kcal)+".<br>Protein "+f1(t.p)+" of "+g.p+" g · carbs "+f1(t.c)+" g · fat "+f1(t.f)+" g.</div>");return;
   }
+  const lk=/^(?:lookup|look up|search|check online|find online)\s+(.+)$/i.exec(raw);
+  if(lk){
+    if(navigator.onLine===false){pushMsg("a","You’re offline right now. Try again when internet is on.");return;}
+    pending={queue:[{name:norm(lk[1]),qty:1,unit:null,mult:1,log:false}],meal:null,cur:null,cands:[]};
+    nextLookup();return;
+  }
   const out=parseMessage(raw);
   const meal=out.meal||autoMeal();
-  const hourOf={Breakfast:8,Lunch:13,Snacks:17,Dinner:20};
-  const isToday=cur===todayStr();
-  const base=isToday?Date.now():parseDs(cur).getTime();
-  const day=S.days[cur]||(S.days[cur]={entries:[]});
-  out.add.forEach((e,i)=>{
-    e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7)+i;
-    e.ts=isToday?base+i:base+((e.type==="workout"?18:hourOf[meal])*3600000)+i;
-    if(e.type==="food")e.meal=meal;
-    day.entries.push(e);
-  });
-  let h="";
-  out.add.forEach(e=>{
-    const neg=e.type==="workout";
-    h+='<div class="row"><div><b>'+esc(e.name)+'</b><small>'+esc(e.qty)+(neg?"":" · "+meal)+'</small>'
-      +(neg?"":'<div class="mac"><span style="--c:var(--pro)">P '+f1(e.p)+'</span><span style="--c:var(--carb)">C '+f1(e.c)+'</span><span style="--c:var(--fat)">F '+f1(e.f)+'</span></div>'
-      +((e.fiber||e.iron||e.ca||e.vc)?'<small>Fibre '+f1(e.fiber)+' g · Iron '+f1(e.iron)+' mg · Ca '+fmt(e.ca)+' mg · Vit C '+f1(e.vc)+' mg</small>':""))
-      +'</div><div class="num'+(neg?" neg":"")+'">'+(neg?"−":"")+fmt(e.kcal)+' kcal</div></div>';
-  });
+  commit(out.add,meal);
+  let h=rowsHTML(out.add,meal);
   out.ask.forEach(a=>{h+='<div class="warn">'+esc(a)+'</div>';});
-  if(out.unk.length)h+='<div class="warn">I couldn’t find <b>'+out.unk.map(esc).join(", ")+'</b>. Add it yourself, for example <code>'+esc(out.unk[0])+' 250 kcal 8p 30c 10f</code>, or try a simpler name.</div>';
-  if(!out.add.length&&!out.ask.length&&!out.unk.length)h="I couldn’t read that. Try <code>2 roti, 1 katori dal</code> or <code>30 min running</code>.";
-  if(out.add.length){
-    save();
-    const t=totals(cur),g=goals();
-    h+='<div class="tot">'+(isToday?"Today":esc(dayLabel(cur)))+': <b>'+fmt(t.net)+'</b> of '+fmt(g.kcal)+' kcal net · protein '+f1(t.p)+' of '+g.p+' g</div>';
+  const offline=navigator.onLine===false;
+  if(out.unk.length){
+    if(offline)h+='<div class="warn">I don’t have <b>'+out.unk.map(esc).join(", ")+'</b> yet, and you’re offline. When internet is on, type <code>lookup '+esc(out.unk[0])+'</code>. Or '+manualHint(out.unk[0]).replace(/^Add/,"add")+'</div>';
+    else h+='<div class="warn">I don’t have <b>'+out.unk.map(esc).join(", ")+'</b> in my list yet. Checking online…</div>';
   }
+  if(out.multi.length)h+='<div class="warn">I read <b>'+out.multi.map(esc).join("; ")+'</b> as separate foods. If that’s wrong, say <code>undo</code> and type it as one item, or add it yourself like <code>name 150 kcal 8p 20c 3f</code>.</div>';
+  if(!out.add.length&&!out.ask.length&&!out.unk.length)h="I couldn’t read that. Try <code>2 roti, 1 katori dal</code> or <code>30 min running</code>.";
+  if(out.add.length)h+=totalHTML();
   pushMsg("a",h);
   render();
+  if(out.unkq.length&&!offline){
+    pending={queue:out.unkq.map(u=>Object.assign({log:true},u)),meal,cur:null,cands:[]};
+    nextLookup();
+  }
 }
 
 /* events */
 function openSettings(){
-  $("#sWeight").value=S.settings.weight;$("#sKcal").value=S.settings.kcal;$("#sPro").value=S.settings.protein;
-  clearArmed=false;$("#clearB").textContent="Clear all data";
+  $("#sWeight").value=S.settings.weight;$("#sKcal").value=S.settings.kcal;$("#sPro").value=S.settings.protein;$("#sKey").value=S.settings.usdaKey||"";
+  clearArmed=false;forgetArmed=false;$("#clearB").textContent="Clear all data";$("#forgetB").textContent="Forget";
+  $("#savedN").firstChild.textContent="Saved foods: "+(S.custom||[]).length;
   $("#ov").classList.add("on");
 }
 document.addEventListener("click",ev=>{
@@ -826,13 +961,21 @@ document.addEventListener("click",ev=>{
     if(t==="undo"){handle("undo");return;}
     const inp=$("#inp");inp.value=t;inp.focus();return;
   }
+  if(a==="pick"){pickCand(+b.dataset.i);return;}
+  if(a==="skip"){if(pending&&pending.cur){const n=pending.cur.name;pending.cands=[];pushMsg("a","Skipped. "+manualHint(n));nextLookup();}return;}
+  if(a==="forget"){
+    if(!(S.custom||[]).length){b.textContent="Nothing saved";return;}
+    if(!forgetArmed){forgetArmed=true;b.textContent="Tap again";return;}
+    S.custom=[];rebuildCustom();save();forgetArmed=false;b.textContent="Forget";$("#savedN").firstChild.textContent="Saved foods: 0";return;
+  }
   if(a==="send"){const inp=$("#inp");const v=inp.value;inp.value="";handle(v);return;}
   if(a==="clear"){
     if(!clearArmed){clearArmed=true;b.textContent="Tap again to delete everything";return;}
-    S.days={};S.chat=[];save();clearArmed=false;b.textContent="Clear all data";
+    S.days={};S.chat=[];S.custom=[];rebuildCustom();save();clearArmed=false;b.textContent="Clear all data";
     pushMsg("a",GREETING);render();$("#ov").classList.remove("on");return;
   }
 });
+$("#sKey").addEventListener("input",ev=>{S.settings.usdaKey=ev.target.value.trim();save();});
 $("#inp").addEventListener("keydown",ev=>{
   if(ev.key==="Enter"){ev.preventDefault();const v=ev.target.value;ev.target.value="";handle(v);}
 });
